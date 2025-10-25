@@ -48,27 +48,120 @@ Ein KI-gesteuerter Minecraft Bot mit fortgeschrittenen Fähigkeiten, powered by 
 
 ## 🚀 Installation
 
+### System-Anforderungen
+
+**Getestet auf**:
+- 💻 **Hardware**: Apple M2 Max
+- 🖥️ **OS**: macOS Sequoia (14.5)
+- 🎮 **Minecraft**: Java Edition 1.21.1
+- 📦 **Node.js**: v18+ empfohlen
+- 🧠 **Ollama**: Latest version
+
+**Sollte auch funktionieren auf**:
+- Windows 10/11
+- Linux (Ubuntu, Debian, etc.)
+- Andere Minecraft-Versionen (1.20+)
+
 ### Voraussetzungen
-- Node.js (v14+)
-- Minecraft Java Edition Server
-- Ollama mit Deepseek Cloud-Zugang
 
-### Setup
+#### 1. Node.js installieren
+- **Download**: https://nodejs.org/
+- **Empfohlen**: v18.x oder höher
+- **Prüfen**: `node --version` und `npm --version`
 
-1. **Projekt klonen**:
+#### 2. Minecraft Java Edition Server
+- **Version**: 1.21.1 (oder kompatibel)
+- **Server-Typ**: Vanilla, Paper, Spigot, etc.
+- **Online-Mode**: `false` in `server.properties` (für offline Auth)
+- **Port**: Standard 25565
+
+#### 3. Ollama mit Deepseek Cloud
+- **Ollama installieren**: https://ollama.ai/
+- **Deepseek Cloud konfigurieren**:
+  ```bash
+  # In Ollama-Config den Cloud-Endpoint eintragen
+  # Details: https://docs.deepseek.com
+  ```
+- **Test**: `curl http://localhost:11434/api/tags`
+
+### Installation & Setup
+
+#### 1. Repository klonen
 ```bash
-git clone https://github.com/DEIN_USERNAME/mineflayer-bot.git
-cd mineflayer-bot
+git clone https://github.com/carstenrossi/Freddiiiiiiii-Minecraft-Bot.git
+cd Freddiiiiiiii-Minecraft-Bot
 ```
 
-2. **Dependencies installieren**:
+#### 2. Dependencies installieren
 ```bash
 npm install
 ```
 
-3. **Bot starten**:
+**Was wird installiert** (aus `package.json`):
+- `mineflayer` - Minecraft Bot Framework
+- `mineflayer-pathfinder` - Navigation & Pathfinding
+- `ollama` - LLM Integration
+- `vec3` - 3D Vektor-Mathematik
+
+**Installation dauert**: ~1-2 Minuten  
+**Größe**: ~370MB `node_modules/`
+
+#### 3. Bot konfigurieren
+
+Öffne `bot-advanced.js` und passe an:
+
+```javascript
+// Zeile ~20-25:
+const bot = mineflayer.createBot({
+  host: 'localhost',        // ← Deine Server-IP
+  port: 25565,              // ← Dein Server-Port
+  username: 'Freddiiiiii',  // ← Bot-Name (kann geändert werden)
+  auth: 'offline'           // Für Offline-Server
+});
+```
+
+**Optional - für Online-Server**:
+```javascript
+auth: 'microsoft',  // Für Microsoft-Account
+// oder
+auth: 'mojang'      // Für Mojang-Account (deprecated)
+```
+
+#### 4. Ollama starten
+
+In einem separaten Terminal:
+```bash
+ollama serve
+```
+
+**Test ob Ollama läuft**:
+```bash
+curl http://localhost:11434/api/tags
+```
+
+#### 5. Minecraft-Server starten
+
+Starte deinen Minecraft Java Edition Server (1.21.1 empfohlen).
+
+**Server muss laufen BEVOR du den Bot startest!**
+
+#### 6. Bot starten
 ```bash
 npm start
+```
+
+**Erwartete Ausgabe**:
+```
+✅ Bot ist verbunden und gespawnt!
+Position: (X, Y, Z)
+🚀 Starte bei Spieler: DEIN_NAME
+⚠️ Loch-Überwachung DEAKTIVIERT
+```
+
+**Im Minecraft-Chat**:
+```
+Freddiiiiii joined the game
+Freddiiiiii: Hi! Lass uns was starten. 🚀
 ```
 
 ## 📖 Nutzung
