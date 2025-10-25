@@ -1,0 +1,27 @@
+{
+  "name": "minecraft-bot",
+  "version": "1.0.0",
+  "description": "Minecraft Bot mit Mineflayer",
+  "main": "bot-advanced.js",
+  "type": "module",
+  "scripts": {
+    "start": "node bot-advanced.js",
+    "intent": "node bot-intent.js",
+    "old": "node bot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "minecraft",
+    "bot",
+    "mineflayer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "minecraft-data": "^3.99.1",
+    "minecraft-protocol": "^1.62.0",
+    "mineflayer": "github:PrismarineJS/mineflayer#master",
+    "mineflayer-pathfinder": "^2.4.5",
+    "ollama": "^0.6.0"
+  }
+}

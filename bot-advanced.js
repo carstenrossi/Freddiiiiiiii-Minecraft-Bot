@@ -1,0 +1,2092 @@
+import mineflayer from 'mineflayer';
+import pathfinderPlugin from 'mineflayer-pathfinder';
+import minecraftData from 'minecraft-data';
+import { Ollama } from 'ollama';
+import { Vec3 } from 'vec3';
+import { erweiterePromptMitWissen } from './minecraft-ai-knowledge.js';
+import SpatialIntelligence from './spatial-intelligence.js';
+
+const { pathfinder, Movements, goals } = pathfinderPlugin;
+
+// Ollama initialisieren
+const ollama = new Ollama({ host: 'http://127.0.0.1:11434' });
+const MODELL = 'deepseek-v3.1:671b-cloud'; // 🔥 Beast-Modell!
+
+// Bot-Konfiguration
+const bot = mineflayer.createBot({
+  host: 'localhost',
+  port: 4444,
+  username: 'Freddiiiiii',
+  version: false,
+});
+
+bot.loadPlugin(pathfinder);
+
+// Räumliche Intelligenz (wird nach spawn initialisiert)
+let spatial = null;
+
+// Event: Bot ist verbunden
+bot.on('spawn', async () => {
+  console.log('✅ Bot ist verbunden und gespawnt!');
+  console.log(`Position: ${bot.entity.position}`);
+  
+  // Initialisiere räumliche Intelligenz
+  spatial = new SpatialIntelligence(bot);
+  
+  await sleep(1000);
+  
+  const spielerListe = Object.values(bot.players).filter(p => p.entity && p.username !== bot.username);
+  
+  if (spielerListe.length > 0) {
+    const ersteSpieler = spielerListe[0];
+    console.log(`🚀 Starte bei Spieler: ${ersteSpieler.username}`);
+    bot.chat(`/tp @s ${ersteSpieler.username}`);
+    await sleep(500);
+  }
+  
+  bot.chat('Hi! Lass uns was starten. 🚀');
+  
+  // Starte automatische Loch-Überprüfung (alle 10 Sekunden)
+  // OPTIONAL: Deaktiviere dies wenn es Probleme gibt
+  // starteLochUeberwachung();
+  console.log('⚠️ Loch-Überwachung DEAKTIVIERT (kann manuell mit "escape" aufgerufen werden)');
+});
+
+// Automatische Loch-Überwachung
+let lochCheckInterval = null;
+let letzterEscapeVersuch = 0;
+let botBeschaeftigt = false; // Globaler Status
+
+function starteLochUeberwachung() {
+  // Verhindere mehrfache Intervals
+  if (lochCheckInterval) {
+    clearInterval(lochCheckInterval);
+  }
+  
+  lochCheckInterval = setInterval(async () => {
+    // NUR prüfen wenn Bot komplett IDLE ist
+    if (bewegungsStatus.aktiv || botBeschaeftigt) {
+      console.log('⏸️ Loch-Check übersprungen (Bot beschäftigt)');
+      return;
+    }
+    
+    const lochInfo = istInLoch();
+    
+    if (lochInfo.inLoch) {
+      // Verhindere zu häufige Escape-Versuche (min 30 Sekunden Pause)
+      const jetztZeit = Date.now();
+      if (jetztZeit - letzterEscapeVersuch < 30000) {
+        console.log('⏳ Warte bevor nächster Escape-Versuch...');
+        return;
+      }
+      
+      letzterEscapeVersuch = jetztZeit;
+      console.log('🚨 AUTOMATISCHER LOCH-CHECK: Bot sitzt fest!');
+      
+      // Versuche rauszukommen
+      await smartEscape();
+    }
+  }, 10000); // Alle 10 Sekunden prüfen
+  
+  console.log('👁️ Loch-Überwachung gestartet (alle 10 Sek)');
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================
+// UMGEBUNGS-SCANNER
+// ============================================
+
+async function scanneUmgebung() {
+  const pos = bot.entity.position;
+  const radius = 32; // KONSISTENT mit Aktions-Reichweite!
+  const scan = {
+    position: { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z) },
+    wasser: null,
+    baeume: null,
+    hoechsterPunkt: null,
+    tiere: [],
+    monster: [],
+    spieler: [],
+    inventar: getInventarInfo(),
+    spatialAnalysis: null // Erweiterte räumliche Analyse
+  };
+  
+  try {
+    // Wasser
+    const wasserBloecke = bot.findBlocks({
+      matching: (block) => block && (block.name === 'water' || block.name === 'flowing_water'),
+      maxDistance: radius,
+      count: 50
+    });
+    
+    if (wasserBloecke.length > 0) {
+      const naechstes = wasserBloecke.reduce((n, c) => 
+        pos.distanceTo(c) < pos.distanceTo(n) ? c : n
+      );
+      scan.wasser = {
+        distanz: Math.floor(pos.distanceTo(naechstes)),
+        position: { x: naechstes.x, y: naechstes.y, z: naechstes.z }
+      };
+    }
+    
+    // Bäume
+    const holzBloecke = bot.findBlocks({
+      matching: (block) => block && block.name.includes('log'),
+      maxDistance: radius,
+      count: 30
+    });
+    
+    if (holzBloecke.length > 0) {
+      const naechstes = holzBloecke.reduce((n, c) => 
+        pos.distanceTo(c) < pos.distanceTo(n) ? c : n
+      );
+      scan.baeume = {
+        anzahl: holzBloecke.length,
+        distanz: Math.floor(pos.distanceTo(naechstes)),
+        position: { x: naechstes.x, y: naechstes.y, z: naechstes.z }
+      };
+    }
+    
+    // Höchster Punkt / Berg finden
+    try {
+      const solidBloecke = bot.findBlocks({
+        matching: (block) => block && block.name !== 'air' && !block.name.includes('water'),
+        maxDistance: radius,
+        count: 100
+      });
+      
+      if (solidBloecke.length > 0) {
+        // Finde höchsten Block
+        const hoechster = solidBloecke.reduce((max, current) => 
+          current.y > max.y ? current : max
+        );
+        
+        // Nur als "Berg" markieren wenn deutlich höher als Bot
+        if (hoechster.y > pos.y + 5) {
+          scan.hoechsterPunkt = {
+            hoehe: hoechster.y,
+            unterschied: Math.floor(hoechster.y - pos.y),
+            distanz: Math.floor(pos.distanceTo(hoechster)),
+            position: { x: hoechster.x, y: hoechster.y, z: hoechster.z }
+          };
+        }
+      }
+    } catch (err) {
+      console.log('Höhen-Scan fehlgeschlagen:', err.message);
+    }
+    
+    // Entities
+    const entities = Object.values(bot.entities).filter(e => 
+      e.position && e.position.distanceTo(pos) < radius && e !== bot.entity
+    );
+    
+    // console.log(`🔍 Gefundene Entities: ${entities.length}`); // Zu verbose
+    
+    for (const entity of entities) {
+      // Reduzierte Logs (nur wichtige)
+      if (entity.type === 'player') {
+        scan.spieler.push({ name: entity.username, distanz: Math.floor(pos.distanceTo(entity.position)) });
+      } else if (entity.type === 'mob' || entity.type === 'passive_mob' || entity.type === 'animal' || 
+                 entity.type === 'hostile' || entity.type === 'passive' || entity.type === 'water_creature') {
+        
+        // entity.name ist oft der Entity-Typ, nicht der Display-Name!
+        const entityTyp = entity.name || entity.displayName || entity.type || 'unbekannt';
+        
+        const istMonster = entityTyp && (
+          entityTyp.includes('zombie') || entityTyp.includes('skeleton') ||
+          entityTyp.includes('creeper') || entityTyp.includes('spider') ||
+          entity.type === 'hostile'
+        );
+        
+        if (istMonster) {
+          // Berechne Richtung zum Monster
+          const dx = entity.position.x - pos.x;
+          const dz = entity.position.z - pos.z;
+          const winkel = Math.atan2(dz, dx) * (180 / Math.PI);
+          const botYaw = bot.entity.yaw * (180 / Math.PI);
+          let relativWinkel = winkel - botYaw;
+          
+          // Normalisiere auf -180 bis 180
+          while (relativWinkel > 180) relativWinkel -= 360;
+          while (relativWinkel < -180) relativWinkel += 360;
+          
+          // Bestimme Richtung
+          let richtung = '';
+          if (Math.abs(relativWinkel) < 45) richtung = 'vor mir';
+          else if (Math.abs(relativWinkel) > 135) richtung = 'hinter mir';
+          else if (relativWinkel > 0) richtung = 'rechts';
+          else richtung = 'links';
+          
+          scan.monster.push({ 
+            typ: entityTyp, 
+            distanz: Math.floor(pos.distanceTo(entity.position)),
+            richtung: richtung
+          });
+        } else {
+          // Berechne Richtung zum Tier
+          const dx = entity.position.x - pos.x;
+          const dz = entity.position.z - pos.z;
+          const winkel = Math.atan2(dz, dx) * (180 / Math.PI);
+          const botYaw = bot.entity.yaw * (180 / Math.PI);
+          let relativWinkel = winkel - botYaw;
+          
+          // Normalisiere auf -180 bis 180
+          while (relativWinkel > 180) relativWinkel -= 360;
+          while (relativWinkel < -180) relativWinkel += 360;
+          
+          // Bestimme Richtung
+          let richtung = '';
+          if (Math.abs(relativWinkel) < 45) richtung = 'vor mir';
+          else if (Math.abs(relativWinkel) > 135) richtung = 'hinter mir';
+          else if (relativWinkel > 0) richtung = 'rechts';
+          else richtung = 'links';
+          
+          scan.tiere.push({ 
+            typ: entityTyp, 
+            distanz: Math.floor(pos.distanceTo(entity.position)),
+            richtung: richtung,
+            position: { x: Math.floor(entity.position.x), y: Math.floor(entity.position.y), z: Math.floor(entity.position.z) }
+          });
+        }
+      } else {
+        // ALLE anderen Entities (falls type nicht mob/player ist)
+        // console.log(`Andere Entity: ${entity.name || entity.displayName || 'unbekannt'}, Type: ${entity.type}`);
+        
+        // Versuche es als Tier zu behandeln
+        if (entity.name || entity.displayName) {
+          const dx = entity.position.x - pos.x;
+          const dz = entity.position.z - pos.z;
+          const winkel = Math.atan2(dz, dx) * (180 / Math.PI);
+          const botYaw = bot.entity.yaw * (180 / Math.PI);
+          let relativWinkel = winkel - botYaw;
+          
+          while (relativWinkel > 180) relativWinkel -= 360;
+          while (relativWinkel < -180) relativWinkel += 360;
+          
+          let richtung = '';
+          if (Math.abs(relativWinkel) < 45) richtung = 'vor mir';
+          else if (Math.abs(relativWinkel) > 135) richtung = 'hinter mir';
+          else if (relativWinkel > 0) richtung = 'rechts';
+          else richtung = 'links';
+          
+          scan.tiere.push({ 
+            typ: entity.name || entity.displayName || entity.type || 'unbekannt', 
+            distanz: Math.floor(pos.distanceTo(entity.position)),
+            richtung: richtung,
+            position: { x: Math.floor(entity.position.x), y: Math.floor(entity.position.y), z: Math.floor(entity.position.z) }
+          });
+        }
+      }
+    }
+    
+  } catch (err) {
+    console.error('Scan-Fehler:', err.message);
+  }
+  
+  // Kompakte Zusammenfassung im Log
+  const tierZusammenfassung = scan.tiere.map(t => t.typ).reduce((acc, typ) => {
+    acc[typ] = (acc[typ] || 0) + 1;
+    return acc;
+  }, {});
+  
+  const tierListe = Object.entries(tierZusammenfassung).map(([typ, count]) => `${count}x${typ}`).join(', ');
+  const monsterListe = scan.monster.map(m => m.typ).join(', ');
+  
+  console.log(`📊 Scan: Tiere:[${tierListe || 'keine'}] Monster:[${monsterListe || 'keine'}]`);
+  
+  // Erweiterte räumliche Analyse NUR auf Anfrage (zu performance-intensiv)
+  // Wird nur bei expliziter "analyse" Anfrage durchgeführt
+  
+  return scan;
+}
+
+function getInventarInfo() {
+  const items = bot.inventory.items();
+  const zusammenfassung = {};
+  
+  for (const item of items) {
+    const name = item.name;
+    zusammenfassung[name] = (zusammenfassung[name] || 0) + item.count;
+  }
+  
+  return zusammenfassung;
+}
+
+function formatiereUmgebungsInfo(scan) {
+  const teile = [];
+  
+  teile.push(`📍 Position: X:${scan.position.x} Y:${scan.position.y} Z:${scan.position.z}`);
+  
+  if (scan.wasser) {
+    teile.push(`💧 Wasser: ${scan.wasser.distanz}m entfernt`);
+  }
+  
+  if (scan.baeume) {
+    teile.push(`🌲 ${scan.baeume.anzahl} Bäume (nächster: ${scan.baeume.distanz}m)`);
+  }
+  
+  if (scan.hoechsterPunkt) {
+    teile.push(`⛰️ Berg: ${scan.hoechsterPunkt.unterschied}m höher`);
+  }
+  
+  if (scan.monster.length > 0) {
+    teile.push(`⚠️ ${scan.monster.length} Monster`);
+  }
+  
+  if (scan.tiere.length > 0) {
+    const tierInfo = scan.tiere.map(t => `${t.typ} (${t.richtung})`).join(', ');
+    teile.push(`🐄 Tiere: ${tierInfo}`);
+  }
+  
+  return teile.join(' | ');
+}
+
+// ============================================
+// KATEGORIE-ERKENNUNG (Schnell & Kompakt!)
+// ============================================
+
+async function erkennKategorie(nachricht) {
+  const prompt = `Kategorisiere diese Minecraft-Anfrage. Antworte NUR mit einem Wort:
+
+Kategorien: bewegung, ressourcen, kampf, bau, info, konversation
+
+Anfrage: "${nachricht}"
+
+Kategorie:`;
+
+  try {
+    const response = await ollama.chat({
+      model: MODELL,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false
+    });
+    
+    const kategorie = response.message.content.trim().toLowerCase();
+    console.log(`📁 Kategorie: ${kategorie}`);
+    return kategorie;
+  } catch (err) {
+    console.error('Kategorie-Fehler:', err.message);
+    return 'konversation';
+  }
+}
+
+// ============================================
+// RÄUMLICHE ANALYSE FORMATTER
+// ============================================
+
+function formatSpatialAnalysis(analysis) {
+  if (!analysis) return '';
+  
+  const parts = [];
+  
+  // Terrain
+  if (analysis.terrain) {
+    parts.push(`📍 Terrain: Durchschnittshöhe Y:${Math.floor(analysis.terrain.averageHeight)}`);
+    if (analysis.terrain.highestPoint) {
+      parts.push(`  ⛰️ Höchster Punkt: Y:${analysis.terrain.highestPoint.y}`);
+    }
+    if (analysis.terrain.flatAreas?.length > 0) {
+      parts.push(`  🏗️ ${analysis.terrain.flatAreas.length} flache Bereiche gefunden`);
+    }
+  }
+  
+  // Baubare Flächen
+  if (analysis.buildableAreas?.length > 0) {
+    const best = analysis.buildableAreas[0];
+    parts.push(`🏗️ Beste Baufläche gefunden (${best.size}x${best.size}, Flachheit: ${(best.flatness*100).toFixed(0)}%)`);
+  }
+  
+  // Strukturen
+  if (analysis.structures) {
+    if (analysis.structures.buildings?.length > 0) {
+      parts.push(`🏠 ${analysis.structures.buildings.length} Gebäude erkannt`);
+    }
+    if (analysis.structures.caves?.length > 0) {
+      parts.push(`🕳️ ${analysis.structures.caves.length} Höhlen gefunden`);
+    }
+  }
+  
+  // Gefahren
+  if (analysis.dangers) {
+    const totalDangers = (analysis.dangers.lava?.length || 0) + 
+                        (analysis.dangers.deepHoles?.length || 0) + 
+                        (analysis.dangers.monsters?.length || 0);
+    if (totalDangers > 0) {
+      parts.push(`⚠️ ${totalDangers} Gefahren erkannt:`);
+      if (analysis.dangers.lava?.length > 0) {
+        parts.push(`  🔥 Lava: ${analysis.dangers.lava[0].distance.toFixed(0)}m`);
+      }
+      if (analysis.dangers.deepHoles?.length > 0) {
+        parts.push(`  🕳️ Tiefe Löcher: ${analysis.dangers.deepHoles.length}`);
+      }
+    }
+  }
+  
+  // Ressourcen
+  if (analysis.resourceClusters) {
+    if (analysis.resourceClusters.wood?.length > 0) {
+      const biggest = analysis.resourceClusters.wood[0];
+      parts.push(`🌳 Wald-Cluster: ${biggest.size} Bäume (${Math.floor(biggest.nearestDistance)}m)`);
+    }
+  }
+  
+  // Räumliche Empfehlungen
+  if (analysis.spatialRelations?.suggestions?.length > 0) {
+    parts.push('💡 Empfehlungen:');
+    analysis.spatialRelations.suggestions.forEach(s => {
+      parts.push(`  - ${s.action}: ${s.reason}`);
+    });
+  }
+  
+  return parts.join('\n');
+}
+
+// ============================================
+// MULTI-STEP PLANNER
+// ============================================
+
+async function planeAktionen(nachricht, umgebung) {
+  const istKomplex = nachricht.split(/und|dann|danach|bevor/).length > 1;
+  
+  // Hole kontextbezogenes Minecraft-Wissen (optional, da Cloud-Modell bereits viel weiß)
+  let zusatzWissen = '';
+  try {
+    zusatzWissen = erweiterePromptMitWissen(nachricht, umgebung, umgebung.inventar || {});
+  } catch (e) {
+    // Fallback wenn Wissensdatei fehlt - Cloud-Modell hat genug eigenes Wissen
+    console.log('📚 Nutze Cloud-Modell Wissen');
+  }
+  
+  const prompt = `Du bist ein intelligenter Minecraft-Bot mit tiefem Verständnis für Minecraft-Mechaniken, Crafting-Rezepte, Bau-Techniken und Spielstrategien.
+
+DEINE POSITION & UMGEBUNG:
+Position: ${umgebung.position.x}, ${umgebung.position.y}, ${umgebung.position.z}
+${umgebung.wasser ? `🌊 Wasser: ${umgebung.wasser.distanz}m entfernt` : '❌ Kein Wasser sichtbar'}
+${umgebung.baeume ? `🌲 Bäume: ${umgebung.baeume.anzahl} Stück (nächster: ${umgebung.baeume.distanz}m)` : '❌ Keine Bäume sichtbar'}
+${umgebung.hoechsterPunkt ? `⛰️ Berg: ${umgebung.hoechsterPunkt.unterschied}m höher (Y:${umgebung.hoechsterPunkt.hoehe})` : '🏔️ Flaches Terrain'}
+${umgebung.monster.length > 0 ? `⚠️ Monster: ${umgebung.monster.map(m => `${m.typ}(${m.distanz}m, ${m.richtung})`).join(', ')}` : '✅ Keine Monster'}
+${umgebung.tiere.length > 0 ? `🐄 Tiere: ${umgebung.tiere.map(t => `${t.typ}(${t.distanz}m, ${t.richtung})`).join(', ')}` : '🐾 Keine Tiere sichtbar'}
+
+INVENTAR:
+${Object.keys(umgebung.inventar).length > 0 ? Object.entries(umgebung.inventar).map(([k,v]) => `- ${v}x ${k}`).join('\n') : '🎒 Inventar ist leer'}
+
+
+SPIELER-ANFRAGE: "${nachricht}"
+
+NUTZE DEIN MINECRAFT-WISSEN:
+- Überlege welche Materialien für die Anfrage optimal sind
+- Beachte Minecraft-Physik (Schwerkraft bei Sand/Gravel, Wasser fließt 8 Blöcke, etc.)
+- Plane effiziente Crafting-Ketten wenn nötig
+- Berücksichtige Tageszeit und Monster-Spawning
+- Denke an optimale Bau-Techniken (z.B. Fundament auf festem Grund)
+
+INTENTS (kurz):
+gehe_wasser, gehe_baum, gehe_berg, gehe_entity, komm_spieler, gehe_xy, tp_spieler, tp_xy
+graben, sammle_holz, bauen, baue_farm, angriff, essen, craften, interagieren
+scan, analyse, position, inventar, schaue, drehe, escape, konversation
+
+JSON-Format (${istKomplex ? 'Array erlaubt' : 'Einzeln'}):
+${istKomplex ? `
+{
+  "aktionen":[
+    {"intent":"gehe_baum"},
+    {"intent":"sammle_holz","anzahl":20},
+    {"intent":"bauen","material":"planks","struktur":"wand","groesse":"klein"}
+  ],
+  "antwort":"Ich gehe zum Baum, sammle Holz und baue!"
+}` : `
+{"intent":"komm_spieler","antwort":"Ich komme!"}`}
+
+SPEZIAL-PARAMETER:
+"bauen": material, struktur, groesse
+"graben": breite (b), tiefe (t), laenge (l) - z.B. 3x5x3 Brunnen → {"breite":3,"tiefe":5,"laenge":3}
+"angriff": typ (z.B. "zombie", "creeper", "llama")
+"baue_farm": typ ("weizen"/"karotten"), groesse ("klein"/"mittel"/"gross")
+"gehe_entity": typ (z.B. "sheep", "cow", "llama", "horse")
+
+DENKPROZESS:
+1. Analysiere die Anfrage mit deinem Minecraft-Wissen
+2. Überlege welche Ressourcen/Schritte optimal wären
+3. Plane realistische Minecraft-Aktionen
+4. Bei "baue ein Haus aus Stein" → Weißt du dass man Cobblestone braucht!
+
+BEISPIELE MIT MINECRAFT-INTELLIGENZ:
+- "baue ein Haus" → Du weißt: Häuser brauchen solides Material wie cobblestone/wood
+  → Nutze räumliche Analyse: {"intent":"analyse"} dann {"intent":"bauen",...}
+- "baue eine Farm/Weizenfarm" → Du weißt: Braucht Wasser, Acker, Seeds, Zaun
+  → {"intent":"baue_farm","typ":"weizen","groesse":"klein"} ODER multi-step mit Wasser suchen
+- "gehe mining" → Du weißt: Unter Y=60 findet man Erze
+- "es wird dunkel" → Du weißt: Monster spawnen, Schutz nötig!
+- "wo soll ich bauen?" → Nutze {"intent":"analyse"} für Bauplatze-Empfehlung
+- "was ist um mich herum?" → Nutze {"intent":"scan"} oder {"intent":"analyse"}
+- "dreh dich um" / "schau nach hinten" → {"intent":"schaue","richtung":"umdrehen"}
+- "ich stecke fest" / "komm raus" → {"intent":"escape"} für Pillar aus Loch
+- "töte das Lama" / "greife Zombie an" → {"intent":"angriff","typ":"llama"} oder {"intent":"angriff","typ":"zombie"}
+- "geh zum Schaf" / "lauf zur Kuh" → {"intent":"gehe_entity","typ":"sheep"} oder {"intent":"gehe_entity","typ":"cow"}
+- "grabe einen Brunnen" / "grabe 3x5x3" → {"intent":"graben","breite":3,"tiefe":5,"laenge":3,"antwort":"Ich grabe einen Brunnen!"}
+
+${istKomplex ? 'MULTI-STEP erlaubt! Plane intelligent wie ein erfahrener Minecraft-Spieler.' : 'Single-Step - aber nutze dein Wissen!'}
+
+Antworte NUR mit JSON:`;
+
+  try {
+    const response = await ollama.chat({
+      model: MODELL,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+      format: 'json',
+      options: {
+        temperature: 0.2,  // Niedrig für faktentreue Minecraft-Antworten
+        top_p: 0.95,
+        seed: 42  // Konsistente Antworten
+      }
+    });
+    
+    const result = JSON.parse(response.message.content.trim());
+    console.log('📋 Plan:', JSON.stringify(result, null, 2));
+    return result;
+  } catch (err) {
+    console.error('Planning-Fehler:', err.message);
+    return { intent: 'konversation', antwort: 'Das habe ich nicht verstanden.' };
+  }
+}
+
+// ============================================
+// INTENT-EXECUTOR
+// ============================================
+
+async function fuehreIntentAus(intentData, username) {
+  const intent = intentData.intent;
+  console.log(`⚡ Führe aus: ${intent}`);
+  
+  try {
+    switch (intent) {
+      case 'gehe_wasser':
+      case 'gehe_zu_wasser':
+        const s1 = await scanneUmgebung();
+        if (s1.wasser) {
+          geheZuPosition(s1.wasser.position);
+        } else {
+          return 'Kein Wasser in Sicht!';
+        }
+        break;
+        
+      case 'gehe_baum':
+      case 'gehe_zu_baum':
+        const s2 = await scanneUmgebung();
+        if (s2.baeume) {
+          geheZuPosition(s2.baeume.position);
+        } else {
+          return 'Keine Bäume in Sicht!';
+        }
+        break;
+        
+      case 'gehe_berg':
+      case 'gehe_hoch':
+        const s3 = await scanneUmgebung();
+        if (s3.hoechsterPunkt) {
+          console.log(`⛰️ Gehe zu Berg auf Höhe ${s3.hoechsterPunkt.hoehe}`);
+          geheZuPosition(s3.hoechsterPunkt.position);
+        } else {
+          return 'Kein Berg/Höhe in Sicht!';
+        }
+        break;
+        
+      case 'komm_spieler':
+      case 'komm_zu_spieler':
+        const spieler = bot.players[username];
+        if (spieler?.entity) {
+          geheZuPosition(spieler.entity.position);
+        }
+        break;
+        
+      case 'gehe_entity':
+      case 'gehe_tier':
+      case 'gehe_mob':
+        const entityTyp = intentData.typ || intentData.entity || intentData.ziel;
+        if (!entityTyp) {
+          bot.chat('Zu welchem Tier soll ich gehen?');
+          break;
+        }
+        
+        // Suche Entity (32 Blöcke Radius wie bei Angriff)
+        console.log(`🔍 Suche nach Entity-Typ: ${entityTyp}`);
+        
+        const alleEntities = Object.values(bot.entities);
+        console.log(`📦 Gesamt-Entities: ${alleEntities.length}`);
+        
+        let spielerCount = 0, ohnePositionCount = 0, zuWeitCount = 0;
+        const matchedEntities = [];
+        
+        const entities = alleEntities.filter(e => {
+          // Stille Filter-Schritte, nur zählen
+          if (e.type === 'player') {
+            spielerCount++;
+            return false;
+          }
+          if (e === bot.entity) return false;
+          
+          if (!e.position) {
+            ohnePositionCount++;
+            return false;
+          }
+          
+          const dist = e.position.distanceTo(bot.entity.position);
+          if (dist >= 32) {
+            zuWeitCount++;
+            return false;
+          }
+          
+          const name = (e.name || e.displayName || e.type || '').toLowerCase();
+          const matches = name.includes(entityTyp.toLowerCase());
+          
+          if (matches) {
+            matchedEntities.push({ name: e.name, dist: dist.toFixed(1) });
+          }
+          
+          return matches;
+        });
+        
+        // Kompakte Zusammenfassung
+        console.log(`  📊 Filter: Spieler:${spielerCount}, OhnePosition:${ohnePositionCount}, ZuWeit:${zuWeitCount}`);
+        if (matchedEntities.length > 0) {
+          console.log(`  ✅ Matches: ${matchedEntities.map(e => `${e.name}(${e.dist}m)`).join(', ')}`);
+        }
+        
+        console.log(`📊 Gefundene ${entityTyp}: ${entities.length}`);
+        
+        if (entities.length === 0) {
+          // Zeige alle Nicht-Spieler Entities zur Info
+          const alleEntities = Object.values(bot.entities)
+            .filter(e => e.type !== 'player' && e !== bot.entity && e.position && e.position.distanceTo(bot.entity.position) < 32)
+            .map(e => `${e.name || e.type}(${e.type})`)
+            .join(', ');
+          
+          console.log(`ℹ️ Verfügbare Entities in 32m: ${alleEntities || 'keine'}`);
+          bot.chat(`❌ Kein ${entityTyp} in Reichweite! Verfügbar: ${alleEntities.substring(0, 50) || 'keine'}`);
+          return 'Fehler_unterdrücke_antwort';
+        }
+        
+        // Gehe zum nächsten
+        const naechste = entities.reduce((n, c) => 
+          bot.entity.position.distanceTo(c.position) < bot.entity.position.distanceTo(n.position) ? c : n
+        );
+        
+        const naechsteName = naechste.name || naechste.displayName || naechste.type || 'Kreatur';
+        const dist = Math.floor(bot.entity.position.distanceTo(naechste.position));
+        
+        bot.chat(`Gehe zu ${naechsteName} (${dist}m entfernt)!`);
+        console.log(`🚶 Gehe zu ${naechsteName} bei ${naechste.position.x}, ${naechste.position.y}, ${naechste.position.z}`);
+        
+        geheZuPosition(naechste.position);
+        break;
+        
+      case 'tp_spieler':
+      case 'teleport_zu_spieler':
+        bot.chat(`/tp @s ${username}`);
+        await sleep(500);
+        break;
+        
+      case 'gehe_xy':
+      case 'gehe_koordinaten':
+        if (intentData.x && intentData.y && intentData.z) {
+          geheZuPosition({ x: intentData.x, y: intentData.y, z: intentData.z });
+        }
+        break;
+        
+      case 'graben':
+        const b = intentData.breite || intentData.b || 4;
+        const t = intentData.tiefe || intentData.t || 1;
+        const l = intentData.laenge || intentData.l || 4;
+        await grabeBereich(b, t, l);
+        break;
+        
+      case 'sammle_holz':
+        await sammleHolz(intentData.anzahl || 10);
+        break;
+        
+      case 'bauen':
+        await baueStruktur(
+          intentData.typ || intentData.blockTyp || intentData.material || 'dirt', 
+          intentData.muster || intentData.struktur || intentData.groesse || 'block'
+        );
+        break;
+        
+      case 'baue_farm':
+        await baueFarm(
+          intentData.typ || 'weizen',
+          intentData.groesse || 'klein'
+        );
+        break;
+        
+      case 'angriff':
+        const angriffsResultat = await greifeMobAn(intentData.mobTyp || intentData.typ || intentData.ziel);
+        if (angriffsResultat === 'nicht_gefunden') {
+          return 'Fehler_unterdrücke_antwort'; // Signal: Zeige LLM-Antwort nicht
+        }
+        break;
+        
+      case 'essen':
+        await esseNahrung();
+        break;
+        
+      case 'craften':
+        await crafteItem(intentData.item, intentData.anzahl || 1);
+        break;
+        
+      case 'interagieren':
+        await interagiereBlock(intentData.blockTyp || intentData.typ || 'door');
+        break;
+        
+      case 'scan':
+        const scan = await scanneUmgebung();
+        return formatScanKompakt(scan);
+        
+      case 'position':
+        const p = bot.entity.position;
+        return `X:${p.x.toFixed(0)} Y:${p.y.toFixed(0)} Z:${p.z.toFixed(0)}`;
+        
+      case 'inventar':
+        return formatInventar();
+        
+      case 'schaue':
+      case 'drehe':
+      case 'umdrehen':
+        const r = intentData.richtung || 'umdrehen';
+        
+        if (r === 'hinten' || r === 'um' || r === 'umdrehen' || r === 'zurück') {
+          // 180 Grad Drehung
+          bot.look(bot.entity.yaw + Math.PI, bot.entity.pitch);
+          bot.chat('🔄 Ich drehe mich um!');
+          // Neuer Scan nach Drehung
+          await sleep(500);
+          const nachDrehung = await scanneUmgebung();
+          if (nachDrehung.tiere.length > 0) {
+            const hintenTiere = nachDrehung.tiere.filter(t => t.richtung === 'vor mir');
+            if (hintenTiere.length > 0) {
+              bot.chat(`👀 Oh! Da ist ein ${hintenTiere[0].typ}!`);
+            }
+          }
+        } else if (r === 'rechts') {
+          bot.look(bot.entity.yaw - Math.PI/2, bot.entity.pitch);
+          bot.chat('➡️ Schaue nach rechts');
+        } else if (r === 'links') {
+          bot.look(bot.entity.yaw + Math.PI/2, bot.entity.pitch);
+          bot.chat('⬅️ Schaue nach links');
+        } else if (r === 'oben') {
+          bot.look(bot.entity.yaw, -Math.PI/3);
+          bot.chat('⬆️ Schaue nach oben');
+        } else if (r === 'unten') {
+          bot.look(bot.entity.yaw, Math.PI/3);
+          bot.chat('⬇️ Schaue nach unten');
+        }
+        break;
+        
+      case 'escape':
+        bot.chat('🆘 Versuche aus Loch zu entkommen...');
+        const erfolg = await smartEscape();
+        return erfolg ? 'Ich bin raus!' : 'Konnte nicht entkommen';
+        
+      case 'scan':
+      case 'umgebung':
+        const u = await scanneUmgebung();
+        return formatiereUmgebungsInfo(u);
+        
+      case 'analyse':
+      case 'raum_analyse':
+        bot.chat('🔬 Führe detaillierte Raumanalyse durch...');
+        
+        // Führe spezielle räumliche Analyse durch (nicht bei jedem Scan!)
+        if (spatial) {
+          try {
+            // Mit Timeout für Sicherheit
+            const analysePromise = spatial.analyzeSpace({ 
+              radius: 15,  // Noch kleiner für Performance
+              center: bot.entity.position 
+            });
+            
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Analyse-Timeout')), 5000)
+            );
+            
+            const spatialData = await Promise.race([analysePromise, timeoutPromise]);
+            
+            const formatted = formatSpatialAnalysis(spatialData);
+            
+            // Zeige kompakte Zusammenfassung im Chat
+            const summary = formatted.split('\n').slice(0, 3).join(' | ');
+            bot.chat(summary.substring(0, 256));
+            
+            // Vollständige Analyse in Konsole
+            console.log('📊 Vollständige Raumanalyse:\n', formatted);
+            
+            return 'Analyse abgeschlossen';
+          } catch (err) {
+            console.error('Analyse-Fehler:', err.message);
+            bot.chat('⚠️ Analyse abgebrochen (Timeout/Fehler)');
+            return 'Analyse fehlgeschlagen';
+          }
+        } else {
+          return 'Räumliche Intelligenz noch nicht bereit';
+        }
+        
+      case 'konversation':
+        // Nur Antwort, keine Aktion
+        break;
+    }
+  } catch (err) {
+    console.error(`Fehler bei ${intent}:`, err.message);
+    return `Fehler: ${err.message}`;
+  }
+  
+  return null;
+}
+
+function formatScanKompakt(scan) {
+  let text = `Pos:${scan.position.x},${scan.position.y},${scan.position.z}`;
+  if (scan.wasser) text += ` Wasser:${scan.wasser.distanz}m`;
+  if (scan.baeume) text += ` Bäume:${scan.baeume.anzahl}`;
+  if (scan.monster.length > 0) text += ` Monster:${scan.monster.length}`;
+  if (scan.tiere.length > 0) {
+    const tierTypen = scan.tiere.map(t => `${t.typ}(${t.richtung})`).join(',');
+    text += ` Tiere:${tierTypen}`;
+  }
+  return text;
+}
+
+function formatInventar() {
+  const items = bot.inventory.items();
+  if (items.length === 0) return 'Leer';
+  
+  const zusammen = {};
+  for (const item of items) {
+    zusammen[item.name] = (zusammen[item.name] || 0) + item.count;
+  }
+  
+  return Object.entries(zusammen)
+    .map(([name, count]) => `${count}x${name}`)
+    .slice(0, 5)
+    .join(', ');
+}
+
+// ============================================
+// HAUPT-CHAT mit MULTI-STEP
+// ============================================
+
+async function chatMitLLM(username, nachricht) {
+  try {
+    // Setze Bot-Status auf beschäftigt
+    botBeschaeftigt = true;
+    
+    // 1. Umgebung scannen
+    console.log('🔍 Scanne Umgebung...');
+    const umgebung = await scanneUmgebung();
+    
+    // 2. Aktionen planen
+    console.log('🧠 Plane Aktionen...');
+    const plan = await planeAktionen(nachricht, umgebung);
+    
+    // 3. Aktionen ausführen
+    if (plan.aktionen && Array.isArray(plan.aktionen)) {
+      // Multi-Step mit Erfolgs-Checks!
+      console.log(`🔗 Multi-Step-Plan mit ${plan.aktionen.length} Aktionen`);
+      
+      for (let i = 0; i < plan.aktionen.length; i++) {
+        const aktion = plan.aktionen[i];
+        console.log(`📍 Schritt ${i+1}/${plan.aktionen.length}: ${aktion.intent}`);
+        
+        // Führe Aktion aus
+        const zusatz = await fuehreIntentAus(aktion, username);
+        
+        // Prüfe bei Bewegungs-Aktionen ob es geklappt hat
+        const istBewegung = ['gehe_wasser', 'gehe_baum', 'komm_spieler', 'gehe_xy'].includes(aktion.intent);
+        
+        if (istBewegung) {
+          // Warte auf Bewegungs-Resultat
+          await sleep(2000);
+          
+          // Check ob Bot stuck ist
+          if (bewegungsStatus.grund === 'kein_pfad') {
+            bot.chat('Plan abgebrochen - ich komme nicht hin!');
+            return 'Ich konnte den Plan nicht ausführen, weil ich nicht zum Ziel komme.';
+          }
+          
+          // Bei langer Bewegung: Warte bis angekommen
+          if (bewegungsStatus.aktiv) {
+            bot.chat(`Unterwegs zu Schritt ${i+1}...`);
+            
+            // Warte maximal 20 Sekunden
+            for (let wait = 0; wait < 40; wait++) {
+              if (!bewegungsStatus.aktiv) break;
+              
+              // Prüfe alle 4 Sekunden ob Bot stuck ist
+              if (wait % 8 === 0 && wait > 0) {
+                const stuck = await istBotStuck();
+                if (stuck) {
+                  await befreieBot();
+                }
+              }
+              
+              await sleep(500);
+            }
+            
+            // Timeout erreicht?
+            if (bewegungsStatus.aktiv) {
+              bot.chat('⏰ Bewegung dauert zu lange, breche ab!');
+              bot.pathfinder.setGoal(null);
+              bewegungsStatus = { aktiv: false, erfolg: false, grund: 'timeout' };
+              return 'Plan abgebrochen wegen Timeout.';
+            }
+          }
+        }
+        
+        if (zusatz) {
+          bot.chat(zusatz);
+        }
+        
+        // Pause zwischen Aktionen
+        if (i < plan.aktionen.length - 1) {
+          await sleep(500);
+        }
+      }
+    } else if (plan.intent) {
+      // Single-Step
+      const zusatz = await fuehreIntentAus(plan, username);
+      
+      // Wenn Aktion fehlgeschlagen ist, zeige NICHT die optimistische LLM-Antwort
+      if (zusatz === 'Fehler_unterdrücke_antwort') {
+        return ''; // Keine Antwort (Funktion hat schon bot.chat gemacht)
+      }
+      
+      if (zusatz) {
+        return plan.antwort + ' ' + zusatz;
+      }
+    }
+    
+    return plan.antwort || 'Erledigt!';
+    
+  } catch (err) {
+    console.error('❌ Chat-Fehler:', err.message);
+    return 'Entschuldigung, da ist was schiefgelaufen.';
+  } finally {
+    // Bot wieder auf IDLE setzen
+    botBeschaeftigt = false;
+    console.log('✅ Bot wieder bereit');
+  }
+}
+
+// ============================================
+// AKTIONS-FUNKTIONEN
+// ============================================
+
+// Bewegungs-Status Tracking
+let bewegungsStatus = { aktiv: false, erfolg: false, grund: null };
+
+function geheZuPosition(ziel) {
+  const mcData = minecraftData(bot.version);
+  const move = new Movements(bot, mcData);
+  
+  // AGGRESSIVE Bewegungs-Einstellungen für Löcher/Höhen
+  move.canDig = true;
+  move.allow1by1towers = true; // Kann aus Löchern klettern! ✅
+  move.allowParkour = false; // Kein Parkour
+  move.maxDropDown = 4; // Max 4 Blöcke runter fallen
+  move.infiniteLiquidDropdownDistance = false;
+  
+  // WICHTIG: Scaffolding-Blocks für Pillar aus Löchern!
+  const bauMaterial = bot.inventory.items().find(i => 
+    i.name && (
+      i.name.includes('dirt') ||
+      i.name.includes('cobblestone') ||
+      i.name.includes('stone') ||
+      i.name.includes('planks') ||
+      i.name.includes('log')
+    )
+  );
+  
+  if (bauMaterial) {
+    move.scaffoldingBlocks = [mcData.itemsByName[bauMaterial.name].id];
+    console.log(`🧱 Nutze ${bauMaterial.name} zum Pillar`);
+  } else {
+    move.scaffoldingBlocks = [];
+    console.log('⚠️ Kein Baumaterial für Pillar');
+  }
+  
+  bot.pathfinder.setMovements(move);
+  
+  const aktuelleY = bot.entity.position.y;
+  const hoehenUnterschied = Math.abs(ziel.y - aktuelleY);
+  
+  // IMMER zum echten Ziel gehen (auch bei Höhenunterschied!)
+  if (hoehenUnterschied > 5) {
+    console.log(`⛰️ Großer Höhenunterschied: ${hoehenUnterschied} Blöcke - versuche hochzuklettern!`);
+  }
+  
+  // GoalNear mit 2 Blöcken Toleranz
+  bot.pathfinder.setGoal(new goals.GoalNear(ziel.x, ziel.y, ziel.z, 2));
+  
+  bewegungsStatus = { aktiv: true, erfolg: false, grund: null };
+  
+  console.log(`🚶 Gehe zu: ${ziel.x}, ${ziel.y}, ${ziel.z} (aktuell Y:${Math.floor(aktuelleY)}, Diff:${Math.floor(hoehenUnterschied)})`);
+  
+  // Längerer Timeout für schwierige Pfade (60 Sekunden)
+  setTimeout(() => {
+    if (bewegungsStatus.aktiv && !bewegungsStatus.erfolg) {
+      console.log('⏰ Bewegungs-Timeout nach 60s!');
+      bot.pathfinder.setGoal(null);
+      bewegungsStatus = { aktiv: false, erfolg: false, grund: 'timeout' };
+      bot.chat('⏰ Ich komme nicht hin (zu schwieriger Weg)!');
+    }
+  }, 60000); // 60 Sekunden
+}
+
+bot.on('goal_reached', () => {
+  console.log('✅ Ziel erreicht!');
+  bewegungsStatus = { aktiv: false, erfolg: true, grund: null };
+  bot.chat('✅ Angekommen!');
+});
+
+bot.on('path_update', (r) => {
+  if (r.status === 'noPath') {
+    console.log('❌ Kein Pfad!');
+    bewegungsStatus = { aktiv: false, erfolg: false, grund: 'kein_pfad' };
+    bot.chat('❌ Ich komme nicht hin - kein Pfad möglich!');
+  }
+});
+
+// Stuck Detection & Escape
+async function istBotStuck() {
+  const startPos = bot.entity.position.clone();
+  await sleep(2000);
+  const endPos = bot.entity.position;
+  const bewegung = startPos.distanceTo(endPos);
+  
+  if (bewegung < 0.5 && bewegungsStatus.aktiv) {
+    console.log('🚫 Bot steckt fest!');
+    return true;
+  }
+  
+  return false;
+}
+
+// Erkenne ob Bot in Loch ist
+function istInLoch() {
+  const pos = bot.entity.position;
+  
+  // VERBESSERTE Loch-Erkennung mit mehr Kontext
+  
+  // 1. Prüfe Wände in unmittelbarer Nähe (1 Block)
+  const nordBlock = bot.blockAt(pos.offset(0, 0, -1));
+  const suedBlock = bot.blockAt(pos.offset(0, 0, 1));
+  const ostBlock = bot.blockAt(pos.offset(1, 0, 0));
+  const westBlock = bot.blockAt(pos.offset(-1, 0, 0));
+  
+  const wandCount = [nordBlock, suedBlock, ostBlock, westBlock]
+    .filter(b => b && b.name !== 'air').length;
+  
+  // 2. Prüfe ob es einen freien Weg raus gibt (2 Blöcke entfernt)
+  let freieRichtungen = 0;
+  const richtungen = [
+    {x: 0, z: -2},  // Nord
+    {x: 0, z: 2},   // Süd
+    {x: 2, z: 0},   // Ost
+    {x: -2, z: 0}   // West
+  ];
+  
+  for (const richtung of richtungen) {
+    const block1 = bot.blockAt(pos.offset(richtung.x / 2, 0, richtung.z / 2)); // 1 Block weg
+    const block2 = bot.blockAt(pos.offset(richtung.x, 0, richtung.z)); // 2 Blöcke weg
+    const bodenCheck = bot.blockAt(pos.offset(richtung.x, -1, richtung.z)); // Boden vorhanden?
+    
+    // Freie Richtung wenn: Beide Blöcke sind Luft UND Boden vorhanden
+    if (block1 && block1.name === 'air' && 
+        block2 && block2.name === 'air' &&
+        bodenCheck && bodenCheck.name !== 'air') {
+      freieRichtungen++;
+    }
+  }
+  
+  // 3. Prüfe Himmel über Bot
+  let luftOben = 0;
+  let deckeFest = false;
+  for (let y = 1; y <= 5; y++) {
+    const blockOben = bot.blockAt(pos.offset(0, y, 0));
+    if (blockOben && blockOben.name === 'air') {
+      luftOben++;
+    } else if (blockOben && blockOben.name !== 'air') {
+      deckeFest = true; // Feste Decke gefunden!
+      break;
+    }
+  }
+  
+  // 4. Prüfe Terrain-Höhe (ist Bot wirklich TIEFER als Umgebung?)
+  let hoehereTerrain = 0;
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dz = -2; dz <= 2; dz++) {
+      if (dx === 0 && dz === 0) continue; // Skip Bot-Position
+      
+      // Finde Boden-Höhe in dieser Richtung
+      for (let dy = 5; dy >= -5; dy--) {
+        const checkBlock = bot.blockAt(pos.offset(dx, dy, dz));
+        if (checkBlock && checkBlock.name !== 'air') {
+          const bodenHoehe = pos.y + dy;
+          // Ist dieser Boden höher als Bot?
+          if (bodenHoehe > pos.y + 1) {
+            hoehereTerrain++;
+          }
+          break;
+        }
+      }
+    }
+  }
+  
+  // STRIKTERE KRITERIEN für echtes Loch:
+  // - ALLE 4 Wände + keine freien Wege ODER
+  // - 3+ Wände + feste Decke + umgebendes Terrain ist höher
+  const istEchtesLoch = (
+    (wandCount === 4 && freieRichtungen === 0) || // Komplett eingeschlossen
+    (wandCount >= 3 && deckeFest && hoehereTerrain >= 10) // Tiefe Grube mit Decke
+  );
+  
+  if (istEchtesLoch) {
+    const tiefe = Math.max(0, 65 - pos.y);
+    console.log(`🕳️ ECHTES LOCH! Wände:${wandCount}, FreieWege:${freieRichtungen}, Decke:${deckeFest}, HöheresTerrain:${hoehereTerrain}`);
+    return { inLoch: true, tiefe };
+  }
+  
+  // Wenn nicht alle Kriterien erfüllt → KEIN Loch (z.B. Terrasse, Hügel)
+  if (wandCount >= 3) {
+    console.log(`✅ Keine Loch-Erkennung: Wände:${wandCount}, aber FreieWege:${freieRichtungen}, Decke:${deckeFest}`);
+  }
+  
+  return { inLoch: false, tiefe: 0 };
+}
+
+// Smart Escape - Intelligentes Rauskommen
+async function smartEscape() {
+  const lochInfo = istInLoch();
+  
+  if (!lochInfo.inLoch) {
+    console.log('✅ Nicht in Loch');
+    return true;
+  }
+  
+  const tiefe = lochInfo.tiefe;
+  bot.chat(`🆘 Ich bin in einem Loch (${Math.floor(tiefe)}m tief)! Komme raus...`);
+  console.log(`🆘 Escape-Strategie für ${Math.floor(tiefe)}m Tiefe`);
+  
+  try {
+    // STRATEGIE: IMMER PILLARING (am zuverlässigsten!)
+    // Suche Baumaterial
+    const baublock = bot.inventory.items().find(i => 
+      i.name.includes('dirt') || i.name.includes('cobblestone') || 
+      i.name.includes('stone') || i.name.includes('log') ||
+      i.name.includes('plank') || i.name.includes('sand') ||
+      i.name.includes('gravel')
+    );
+    
+    if (baublock) {
+      console.log(`📍 Strategie: Pillaring mit ${baublock.name} (${baublock.count}x vorhanden)`);
+      bot.chat(`Baue Turm mit ${baublock.displayName || baublock.name}...`);
+      
+      await bot.equip(baublock, 'hand');
+      
+      const zielHoehe = Math.max(Math.ceil(tiefe) + 2, 5); // Min 5, besser mehr
+      let erfolg = 0;
+      
+      for (let i = 0; i < zielHoehe; i++) {
+        try {
+          // Schaue nach unten
+          await bot.look(0, Math.PI / 2, true); // Pitch runter
+          await sleep(50);
+          
+          // Springe
+          bot.setControlState('jump', true);
+          await sleep(150);
+          
+          // Platziere Block unter sich
+          const unterMir = bot.entity.position.offset(0, -1, 0);
+          const ref = bot.blockAt(unterMir);
+          
+          if (ref && ref.name === 'air') {
+            // Schaue zum Referenzblock unter dem Luft-Block
+            const boden = bot.blockAt(unterMir.offset(0, -1, 0));
+            if (boden && boden.name !== 'air') {
+              await bot.placeBlock(boden, new Vec3(0, 1, 0));
+              erfolg++;
+              console.log(`📦 Pillar ${erfolg}/${zielHoehe}`);
+            }
+          }
+          
+          bot.setControlState('jump', false);
+          await sleep(300);
+        } catch (e) {
+          console.log(`Pillar-Fehler: ${e.message}`);
+        }
+      }
+      
+      // Prüfe ob raus
+      await sleep(500);
+      const nachEscape = istInLoch();
+      
+      if (!nachEscape.inLoch) {
+        bot.chat(`✅ Rausgepillart! (${erfolg} Blöcke)`);
+        return true;
+      } else {
+        bot.chat('⚠️ Noch nicht ganz raus, versuche weiter...');
+        // Fallback: Nach oben graben
+      }
+    }
+    
+    // FALLBACK: Kein Material oder Pillaring hat nicht gereicht → Nach oben graben
+    console.log('📍 Fallback-Strategie: Nach oben graben');
+    bot.chat('Grabe nach oben...');
+    
+    for (let y = 1; y <= Math.ceil(tiefe) + 3; y++) {
+      const block = bot.blockAt(bot.entity.position.offset(0, y, 0));
+      
+      if (block && block.name !== 'air') {
+        console.log(`⛏️ Grabe ${block.name} bei Y+${y}`);
+        await bot.dig(block);
+        await sleep(200);
+      }
+    }
+    
+    // Jetzt versuche hochzuspringen
+    for (let jump = 0; jump < 10; jump++) {
+      bot.setControlState('jump', true);
+      await sleep(250);
+      bot.setControlState('jump', false);
+      await sleep(150);
+    }
+    
+    // Final-Check
+    await sleep(500);
+    const finalCheck = istInLoch();
+    
+    if (!finalCheck.inLoch) {
+      bot.chat('✅ Rausgegraben!');
+      return true;
+    } else {
+      bot.chat('❌ Escape fehlgeschlagen! Bitte teleportiere mich: /tp Freddiiiiii @p');
+      return false;
+    }
+    
+  } catch (err) {
+    console.error('❌ Escape gescheitert:', err.message);
+    bot.chat('❌ Ich komme nicht raus! Bitte teleportiere mich!');
+    return false;
+  }
+}
+
+async function grabeBereich(b, t, l, mitTreppe = true) {
+  bot.chat(`🔨 Grabe ${b}x${t}x${l}${mitTreppe ? ' mit Treppe' : ''}...`);
+  console.log(`⛏️ Starte Graben: ${b}x${t}x${l} Bereich${mitTreppe ? ' (mit Treppe)' : ''}`);
+  
+  try {
+    // Debug: Zeige verfügbare Items
+    const allItems = bot.inventory.items().map(i => i.name).join(', ');
+    console.log(`📦 Inventar: ${allItems || 'leer'}`);
+    
+    // Versuche Schaufel oder Spitzhacke zu equippen
+    const werkzeug = bot.inventory.items().find(i => 
+      i.name && (
+        i.name.includes('shovel') || 
+        i.name.includes('pickaxe') ||
+        i.name.includes('spade') // Alternative Bezeichnung
+      )
+    );
+    
+    if (werkzeug) {
+      try {
+        await bot.equip(werkzeug, 'hand');
+        console.log(`🔧 Equippe ${werkzeug.name} zum Graben`);
+        bot.chat(`Nutze ${werkzeug.name}...`);
+      } catch (equipErr) {
+        console.error('⚠️ Equip-Fehler:', equipErr.message);
+        bot.chat('Nutze Hand (kein Werkzeug)...');
+      }
+    } else {
+      console.log('⚠️ Kein Grab-Werkzeug gefunden, nutze Hand');
+      bot.chat('⚠️ Keine Schaufel/Spitzhacke - das wird langsam!');
+      
+      // Optional: Prüfe ob Material zum Craften da ist
+      const holzSticks = bot.inventory.items().find(i => i.name === 'stick');
+      const holzPlanks = bot.inventory.items().find(i => i.name.includes('planks'));
+      
+      if (holzSticks && holzPlanks && holzPlanks.count >= 3) {
+        bot.chat('💡 Tipp: Ich könnte eine Holz-Schaufel craften!');
+      }
+    }
+    
+    const start = bot.entity.position.clone();
+    let count = 0;
+    
+    // Wenn Treppe gewünscht und tief genug (>2 Blöcke)
+    const baueTreppe = mitTreppe && t >= 3;
+    
+    if (baueTreppe) {
+      bot.chat('🪜 Grabe mit Treppen-Ausgang...');
+    }
+    
+    for (let y = 0; y < t; y++) {
+      for (let z = 0; z < l; z++) {
+        for (let x = 0; x < b; x++) {
+          // EINFACHE LÖSUNG: Lasse eine Seite komplett frei zum Raus-Graben
+          if (baueTreppe && x === 0 && z === 0) {
+            continue; // Skip erste Spalte - hier kann man rausgraben
+          }
+          
+          const pos = start.offset(x, -(y + 1), z);
+          const block = bot.blockAt(pos);
+          
+          if (!block || block.name === 'air') continue;
+          
+          // Bewege dich hin wenn zu weit
+          if (bot.entity.position.distanceTo(pos) > 4.5) {
+            try {
+              await bot.pathfinder.goto(new goals.GoalBlock(pos.x, pos.y + 1, pos.z));
+            } catch (moveErr) {
+              console.log(`⚠️ Kann nicht zu Block bewegen: ${moveErr.message}`);
+              continue;
+            }
+          }
+          
+          try {
+            await bot.dig(block);
+            count++;
+            await sleep(100);
+          } catch (digErr) {
+            console.log(`⚠️ Graben fehlgeschlagen: ${digErr.message}`);
+          }
+        }
+      }
+      if (t > 1) bot.chat(`Schicht ${y+1}/${t}`);
+    }
+    
+    // Nach Graben: Gehe zur Treppe raus
+    if (baueTreppe) {
+      bot.chat('🚶 Gehe Treppe hoch...');
+      await sleep(500);
+      
+      try {
+        // Gehe zur Ecke mit der Treppe
+        const treppenAusgang = start.offset(0, 0, 0);
+        await bot.pathfinder.goto(new goals.GoalNear(treppenAusgang.x, treppenAusgang.y, treppenAusgang.z, 1));
+        bot.chat('✅ Aus dem Loch!');
+      } catch (exitErr) {
+        console.log('⚠️ Konnte nicht zur Treppe:', exitErr.message);
+      }
+    }
+    
+    bot.chat(`✅ ${count} Blöcke gegraben!`);
+  } catch (err) {
+    bot.chat(`❌ ${err.message}`);
+  }
+}
+
+async function sammleHolz(anzahl) {
+  bot.chat(`🌳 Sammle ${anzahl} Holz...`);
+  
+  try {
+    const bloecke = bot.findBlocks({
+      matching: (b) => b && b.name.includes('log'),
+      maxDistance: 64,
+      count: anzahl * 2
+    });
+    
+    if (bloecke.length === 0) {
+      bot.chat('Keine Bäume in Sicht!');
+      throw new Error('Keine Bäume gefunden');
+    }
+    
+    const naechster = bloecke.reduce((n, c) => 
+      bot.entity.position.distanceTo(c) < bot.entity.position.distanceTo(n) ? c : n
+    );
+    
+    const dist = bot.entity.position.distanceTo(naechster);
+    console.log(`📍 Nächster Holzblock: ${Math.floor(dist)}m entfernt`);
+    
+    // NUR hingehen wenn weit weg (>8 Blöcke)
+    if (dist > 8) {
+      console.log(`🚶 Gehe zum Baum (${Math.floor(dist)}m)`);
+      bot.chat(`Gehe zum Baum...`);
+      geheZuPosition(naechster);
+      
+      // Warte auf Ankunft (maximal 15 Sekunden)
+      for (let w = 0; w < 30; w++) {
+        if (!bewegungsStatus.aktiv || bewegungsStatus.erfolg) break;
+        
+        if (bewegungsStatus.grund === 'kein_pfad') {
+          bot.chat('❌ Kann nicht zum Baum!');
+          throw new Error('Kein Pfad zum Baum');
+        }
+        
+        await sleep(500);
+      }
+      
+      if (bewegungsStatus.aktiv) {
+        bot.chat('⏰ Timeout beim Gehen!');
+        bot.pathfinder.setGoal(null);
+        throw new Error('Timeout');
+      }
+      
+      await sleep(500); // Kurz stabilisieren
+    } else {
+      console.log(`✅ Bereits nah genug am Baum (${Math.floor(dist)}m)`);
+    }
+    
+    // Jetzt sammeln!
+    console.log(`⛏️ Starte Abbau von ${anzahl} Holzblöcken`);
+    let gesammelt = 0;
+    
+    for (const pos of bloecke) {
+      if (gesammelt >= anzahl) break;
+      
+      const block = bot.blockAt(pos);
+      if (block && block.name.includes('log')) {
+        // Prüfe Reichweite
+        const entfernung = bot.entity.position.distanceTo(pos);
+        if (entfernung > 5) {
+          console.log(`Block zu weit (${Math.floor(entfernung)}m), überspringe`);
+          continue;
+        }
+        
+        await bot.dig(block);
+        gesammelt++;
+        console.log(`⛏️ Holz ${gesammelt}/${anzahl}`);
+        await sleep(100);
+      }
+    }
+    
+    if (gesammelt === 0) {
+      bot.chat('❌ Konnte kein Holz sammeln!');
+      throw new Error('Kein Holz gesammelt');
+    }
+    
+    bot.chat(`✅ ${gesammelt} Holz gesammelt!`);
+  } catch (err) {
+    bot.chat(`❌ Holz-Sammeln fehlgeschlagen: ${err.message}`);
+    throw err; // Werfe Fehler weiter damit Multi-Step abbricht
+  }
+}
+
+async function baueStruktur(blockTyp, muster) {
+  bot.chat(`🏗️ Baue ${muster || 'Struktur'}...`);
+  
+  try {
+    // Intelligente Item-Suche (auch für abstrakte Begriffe wie "haus")
+    let item = null;
+    
+    // Wenn "haus" oder abstrakt → Suche nach Planken/Holz
+    if (blockTyp === 'haus' || blockTyp === 'klein' || blockTyp === 'struktur') {
+      item = bot.inventory.items().find(i => 
+        i.name.includes('plank') || 
+        i.name.includes('log') ||
+        i.name.includes('cobblestone') ||
+        i.name.includes('stone')
+      );
+      if (item) {
+        console.log(`🔧 Nutze ${item.name} für Bau`);
+      }
+    } else {
+      // Spezifischer Block-Typ
+      item = bot.inventory.items().find(i => i.name.includes(blockTyp));
+    }
+    
+    if (!item) {
+      const inv = bot.inventory.items().map(i => i.name).join(', ');
+      bot.chat(`Kein Baumaterial! Inventar: ${inv.substring(0, 50)}...`);
+      throw new Error('Kein Baumaterial im Inventar');
+    }
+    
+    bot.chat(`Nutze ${item.name}...`);
+    await bot.equip(item, 'hand');
+    const startPos = bot.entity.position.floored();
+    let count = 0;
+    
+    // WICHTIG: Erst in sichere Position bewegen!
+    console.log('🚶 Bewege mich in Bauposition...');
+    
+    // Sichere Bau-Position je nach Muster
+    let bauPos = startPos.clone();
+    if (muster === 'turm') {
+      // Bei Turm: 2 Blöcke zur Seite gehen
+      geheZuPosition(startPos.offset(2, 0, 0));
+      await sleep(2000); // Warte auf Bewegung
+      bauPos = startPos; // Baue auf ursprünglicher Position
+    } else {
+      // Bei anderen: 2 Blöcke zurück für bessere Sicht  
+      geheZuPosition(startPos.offset(-2, 0, 0));
+      await sleep(2000); // Warte auf Bewegung
+    }
+    
+    // Intelligente Muster
+    if (muster === 'reihe' || muster === 'bruecke') {
+      // Baue Reihe VORWÄRTS von aktueller Position
+      for (let x = 3; x <= 7; x++) { // Start bei 3 für Sicherheitsabstand
+        const blockPos = startPos.offset(x, -1, 0);
+        const ref = bot.blockAt(blockPos);
+        if (ref && ref.name !== 'air') {
+          try {
+            await bot.lookAt(blockPos.offset(0.5, 0.5, 0.5));
+            await bot.placeBlock(ref, new Vec3(0, 1, 0));
+            count++;
+            await sleep(300);
+          } catch (e) {
+            console.log(`Block ${x} fehlgeschlagen: ${e.message}`);
+          }
+        }
+      }
+    } else if (muster === 'turm') {
+      // Turm an bauPos (nicht wo Bot steht!)
+      bot.chat('Baue Turm von der Seite...');
+      
+      for (let y = 0; y <= 5; y++) {
+        try {
+          const turmPos = bauPos.offset(0, y, 0);
+          
+          // Schaue zum Turm
+          await bot.lookAt(turmPos.offset(0.5, 0.5, 0.5));
+          
+          // Finde Referenzblock (der Block UNTER dem zu platzierenden)
+          const refPos = bauPos.offset(0, y-1, 0);
+          const ref = bot.blockAt(refPos);
+          
+          if (ref && ref.name !== 'air') {
+            await bot.placeBlock(ref, new Vec3(0, 1, 0));
+            count++;
+            console.log(`🏗️ Turm-Ebene ${y} gebaut`);
+            await sleep(400);
+          }
+        } catch (e) {
+          console.log(`Turm-Fehler bei Y=${y}: ${e.message}`);
+        }
+      }
+    } else {
+      // "haus" oder unbekannt → Baue kleine Wand/Box
+      bot.chat('Baue Struktur mit Abstand...');
+      
+      // Baue 2x2 Blöcke VORWÄRTS für Mini-Haus Grundriss
+      for (let x = 3; x <= 4; x++) {
+        for (let z = -1; z <= 0; z++) {
+          try {
+            // Finde Boden-Block als Referenz
+            const bodenPos = startPos.offset(x, -1, z);
+            const bodenBlock = bot.blockAt(bodenPos);
+          
+            if (!bodenBlock || bodenBlock.name === 'air') {
+              console.log(`Kein Boden bei ${x},${z}, überspringe`);
+              continue;
+            }
+            
+            // Schaue zum Block-Platz
+            await bot.lookAt(bodenPos.offset(0.5, 1.5, 0.5));
+            
+            // Platziere Block AUF dem Boden
+            await bot.placeBlock(bodenBlock, new Vec3(0, 1, 0));
+            count++;
+            console.log(`🧱 Block ${count} platziert bei ${x},${z}`);
+            await sleep(400); // Pause gegen Timeout
+            
+          } catch (e) {
+            console.log(`Fehler bei Block ${x},${z}: ${e.message.substring(0,50)}`);
+            await sleep(200);
+          }
+        }
+      }
+    }
+    
+    if (count === 0) {
+      bot.chat('❌ Konnte nichts bauen - kein stabiler Untergrund?');
+      throw new Error('Nichts gebaut');
+    }
+    
+    bot.chat(`✅ ${count} Blöcke gebaut!`);
+  } catch (err) {
+    console.error('Bau-Fehler:', err.message);
+    bot.chat(`❌ Bau fehlgeschlagen`);
+    throw err;
+  }
+}
+
+async function baueFarm(farmTyp = 'weizen', groesse = 'klein') {
+  bot.chat(`🌾 Baue ${groesse}e ${farmTyp}-Farm...`);
+  
+  try {
+    const pos = bot.entity.position.clone();
+    
+    // Größen-Definition
+    const farmSizes = {
+      'klein': { breite: 9, laenge: 9 },    // 9x9 mit Wasser in Mitte
+      'mittel': { breite: 15, laenge: 15 }, // Größere Farm
+      'gross': { breite: 21, laenge: 21 }   // Sehr große Farm
+    };
+    
+    const size = farmSizes[groesse] || farmSizes.klein;
+    const mitte = Math.floor(size.breite / 2);
+    
+    // 1. Check für Wasserquelle
+    bot.chat('🔍 Suche nach Wasser...');
+    const wasserBlocks = bot.findBlocks({
+      matching: (block) => block.name === 'water',
+      maxDistance: 20,
+      count: 1
+    });
+    
+    let wasserPos;
+    if (wasserBlocks.length > 0) {
+      wasserPos = wasserBlocks[0];
+      bot.chat(`💧 Wasser gefunden bei ${wasserPos}`);
+    } else {
+      // Wasser platzieren (wenn Eimer vorhanden)
+      const eimer = bot.inventory.items().find(i => i.name === 'water_bucket');
+      if (eimer) {
+        wasserPos = pos.offset(mitte, -1, mitte);
+        const lochBlock = bot.blockAt(wasserPos.offset(0, -1, 0));
+        if (lochBlock) {
+          await bot.dig(lochBlock);
+          await sleep(300);
+          await bot.equip(eimer, 'hand');
+          await bot.placeBlock(lochBlock, new Vec3(0, 1, 0));
+          bot.chat('💧 Wasser platziert!');
+        }
+      } else {
+        bot.chat('❌ Kein Wasser gefunden und kein Eimer vorhanden!');
+        throw new Error('Kein Wasser für Farm');
+      }
+    }
+    
+    // 2. Hoe finden oder craften
+    let hoe = bot.inventory.items().find(i => i.name.includes('hoe'));
+    if (!hoe) {
+      bot.chat('🔨 Keine Hacke gefunden - improvisiere...');
+      // Könnte hier Hoe craften, aber erstmal vereinfacht
+    }
+    
+    // 3. Farmland erstellen
+    bot.chat('🚜 Bearbeite Boden...');
+    let bearbeiteteFelder = 0;
+    
+    for (let x = -mitte; x <= mitte; x++) {
+      for (let z = -mitte; z <= mitte; z++) {
+        // Skip Wasser in der Mitte
+        if (Math.abs(x) <= 1 && Math.abs(z) <= 1) continue;
+        
+        const feldPos = pos.offset(x, -1, z);
+        const block = bot.blockAt(feldPos);
+        
+        if (block && (block.name === 'grass_block' || block.name === 'dirt')) {
+          try {
+            // Mit Hoe bearbeiten (rechtsklick)
+            if (hoe) {
+              await bot.equip(hoe, 'hand');
+            }
+            
+            // Farmland erstellen durch "use" auf dirt/grass
+            await bot.lookAt(feldPos.offset(0.5, 0.5, 0.5));
+            
+            // Simuliere Rechtsklick zum Hacken
+            await bot.activateBlock(block); // Das macht farmland mit hoe
+            await sleep(200);
+            
+            bearbeiteteFelder++;
+            
+          } catch (e) {
+            console.log(`Fehler bei Feld ${x},${z}: ${e.message}`);
+          }
+        }
+      }
+    }
+    
+    bot.chat(`✅ ${bearbeiteteFelder} Felder bearbeitet!`);
+    
+    // 4. Seeds pflanzen
+    const seeds = bot.inventory.items().find(i => 
+      i.name === 'wheat_seeds' || 
+      i.name === 'carrot' || 
+      i.name === 'potato'
+    );
+    
+    if (seeds) {
+      bot.chat(`🌱 Pflanze ${seeds.name}...`);
+      await bot.equip(seeds, 'hand');
+      
+      let gepflanzt = 0;
+      for (let x = -mitte; x <= mitte; x++) {
+        for (let z = -mitte; z <= mitte; z++) {
+          if (Math.abs(x) <= 1 && Math.abs(z) <= 1) continue;
+          
+          const feldPos = pos.offset(x, -1, z);
+          const block = bot.blockAt(feldPos);
+          
+          if (block && block.name === 'farmland') {
+            try {
+              await bot.placeBlock(block, new Vec3(0, 1, 0));
+              gepflanzt++;
+              await sleep(150);
+            } catch (e) {
+              // Ignoriere Fehler beim Pflanzen
+            }
+          }
+        }
+      }
+      
+      bot.chat(`✅ ${gepflanzt} Samen gepflanzt!`);
+    } else {
+      bot.chat('⚠️ Keine Samen vorhanden!');
+    }
+    
+    // 5. Optional: Zaun bauen
+    const zaun = bot.inventory.items().find(i => i.name.includes('fence'));
+    if (zaun && groesse === 'klein') {
+      bot.chat('🚧 Baue Zaun...');
+      // Vereinfacht - nur Ecken markieren
+      const ecken = [
+        pos.offset(-mitte-1, 0, -mitte-1),
+        pos.offset(mitte+1, 0, -mitte-1),
+        pos.offset(-mitte-1, 0, mitte+1),
+        pos.offset(mitte+1, 0, mitte+1)
+      ];
+      
+      for (const ecke of ecken) {
+        const boden = bot.blockAt(ecke.offset(0, -1, 0));
+        if (boden && boden.name !== 'air') {
+          try {
+            await bot.equip(zaun, 'hand');
+            await bot.placeBlock(boden, new Vec3(0, 1, 0));
+            await sleep(300);
+          } catch (e) {
+            console.log('Zaun-Fehler:', e.message);
+          }
+        }
+      }
+    }
+    
+    bot.chat(`🎉 Farm fertig! ${bearbeiteteFelder} Felder angelegt.`);
+    
+  } catch (err) {
+    bot.chat(`❌ Farm-Fehler: ${err.message}`);
+    throw err;
+  }
+}
+
+async function greifeMobAn(mobTyp) {
+  bot.chat(`⚔️ Suche ${mobTyp || 'Mob'}...`);
+  
+  try {
+    const mobs = Object.values(bot.entities).filter(e => {
+      // Alle Nicht-Spieler Entities
+      if (e.type === 'player' || e === bot.entity) return false;
+      
+      // Distanz-Check (erhöht auf 32 Blöcke für bessere Reichweite)
+      if (!e.position || e.position.distanceTo(bot.entity.position) >= 32) return false;
+      
+      // Typ-Check wenn spezifiziert
+      if (mobTyp) {
+        const entityName = (e.name || e.displayName || e.type || '').toLowerCase();
+        return entityName.includes(mobTyp.toLowerCase());
+      }
+      
+      // Wenn kein Typ angegeben, alle Mobs/Tiere
+      return ['mob', 'animal', 'hostile', 'passive', 'water_creature'].includes(e.type);
+    });
+    
+    if (mobs.length === 0) {
+      bot.chat(`❌ Kein ${mobTyp || 'Mob'} in Reichweite (32m)!`);
+      return 'nicht_gefunden'; // Status-Code für Caller
+    }
+    
+    const ziel = mobs[0];
+    const zielName = ziel.name || ziel.displayName || ziel.type || 'Kreatur';
+    const distanz = bot.entity.position.distanceTo(ziel.position);
+    
+    bot.chat(`Greife ${zielName} an! (${Math.floor(distanz)}m entfernt)`);
+    
+    // Wenn zu weit weg → erstmal hinbewegen!
+    if (distanz > 3) {
+      bot.chat(`Laufe zu ${zielName}...`);
+      console.log(`🏃 Bewege mich ${Math.floor(distanz)}m zum Ziel`);
+      
+      // Nutze pathfinder um zum Ziel zu laufen (aber nicht zu nah)
+      const mcData = minecraftData(bot.version);
+      const movements = new Movements(bot, mcData);
+      movements.canDig = false; // Nicht graben während Verfolgung
+      movements.allowParkour = false;
+      bot.pathfinder.setMovements(movements);
+      
+      try {
+        // Laufe bis 2 Blöcke ran (Angriffs-Reichweite)
+        bot.pathfinder.setGoal(new goals.GoalFollow(ziel, 2), true);
+        
+        // Warte kurz auf Bewegung
+        await sleep(1000);
+        
+        // Warte bis nah genug (max 15 Sekunden für weite Strecken)
+        const maxWait = Math.min(30, Math.ceil(distanz / 2)); // 2 Blöcke pro Sekunde
+        for (let i = 0; i < maxWait; i++) {
+          const aktDist = bot.entity.position.distanceTo(ziel.position);
+          if (aktDist <= 3) {
+            console.log(`✅ Nah genug: ${aktDist.toFixed(1)}m`);
+            break;
+          }
+          
+          // Prüfe ob Ziel noch existiert
+          if (!ziel.isValid) {
+            console.log('⚠️ Ziel verschwunden während Bewegung');
+            break;
+          }
+          
+          await sleep(500);
+        }
+        
+        // Stoppe Bewegung
+        bot.pathfinder.setGoal(null);
+      } catch (moveErr) {
+        console.error('⚠️ Bewegung zum Ziel fehlgeschlagen:', moveErr.message);
+        // Greife trotzdem an
+      }
+    }
+    
+    // Versuche beste Waffe zu equippen (OHNE zu crashen bei Protokoll-Fehlern)
+    try {
+      const waffe = bot.inventory.items().find(i => 
+        i.name && (
+          i.name.includes('sword') || 
+          i.name.includes('axe') ||
+          i.name.includes('trident')
+        )
+      );
+      
+      if (waffe) {
+        console.log(`🗡️ Equippe ${waffe.name}`);
+        await bot.equip(waffe, 'hand');
+        await sleep(200);
+      } else {
+        console.log('⚠️ Keine Waffe gefunden, nutze Faust');
+      }
+    } catch (equipErr) {
+      console.error('⚠️ Equip-Fehler (ignoriert):', equipErr.message);
+      // Weiter machen auch ohne Waffe
+    }
+    
+    // Schaue zum Ziel
+    try {
+      await bot.lookAt(ziel.position.offset(0, ziel.height || 1, 0));
+    } catch (lookErr) {
+      console.error('⚠️ LookAt-Fehler:', lookErr.message);
+    }
+    
+    await sleep(200);
+    
+    // Angriffs-Schleife mit Bewegung
+    for (let i = 0; i < 20; i++) { // Mehr Iterationen für längere Kämpfe
+      // Prüfe ob Ziel noch existiert und valide ist
+      if (!ziel || !ziel.isValid || !ziel.position) {
+        bot.chat('✅ Besiegt oder entkommen!');
+        bot.pathfinder.setGoal(null); // Stoppe Verfolgung
+        bot.setControlState('sprint', false); // Stoppe Sprint
+        break;
+      }
+      
+      try {
+        // Prüfe aktuelle Distanz
+        const aktDistanz = bot.entity.position.distanceTo(ziel.position);
+        
+        // Abbruch wenn Ziel zu weit weggelaufen ist (>25 Blöcke)
+        if (aktDistanz > 25) {
+          console.log(`❌ Ziel ist ${aktDistanz.toFixed(1)}m weg - zu weit, breche ab`);
+          bot.chat(`${zielName} ist entkommen (zu weit weg)!`);
+          bot.pathfinder.setGoal(null);
+          bot.setControlState('sprint', false);
+          break;
+        }
+        
+        // Wenn zu weit weg → folge dem Ziel
+        if (aktDistanz > 3.5) {
+          console.log(`🏃 Ziel ist ${aktDistanz.toFixed(1)}m weg, folge!`);
+          
+          // Aktiviere Sprint für schnellere Verfolgung
+          bot.setControlState('sprint', true);
+          
+          // Nutze GoalFollow für kontinuierliches Verfolgen
+          const mcData = minecraftData(bot.version);
+          const movements = new Movements(bot, mcData);
+          movements.canDig = false;
+          movements.allowParkour = false;
+          movements.allowSprinting = true; // Erlaube Sprint!
+          bot.pathfinder.setMovements(movements);
+          bot.pathfinder.setGoal(new goals.GoalFollow(ziel, 2), true);
+          
+          // Warte kurz auf Bewegung
+          await sleep(300);
+        } else {
+          // Nah genug → stoppe Bewegung und greife an
+          bot.pathfinder.setGoal(null);
+          bot.setControlState('sprint', false); // WICHTIG: Kein Sprint beim Angriff (mehr Schaden!)
+          
+          // Schaue zum Ziel
+          await bot.lookAt(ziel.position.offset(0, ziel.height || 1, 0));
+          
+          // Angriff
+          await bot.attack(ziel);
+          console.log(`⚔️ Angriff ${i+1} (Dist: ${aktDistanz.toFixed(1)}m)`);
+        }
+        
+      } catch (attackErr) {
+        console.error(`⚠️ Angriffs-Fehler: ${attackErr.message}`);
+        // Versuche weiterzumachen
+      }
+      
+      await sleep(500);
+    }
+    
+    // Stoppe finale Bewegung und Sprint
+    bot.pathfinder.setGoal(null);
+    bot.setControlState('sprint', false);
+    
+    bot.chat('⚔️ Kampf beendet!');
+    
+  } catch (err) {
+    console.error('❌ Angriffs-Fehler:', err);
+    bot.chat(`❌ Angriff fehlgeschlagen: ${err.message}`);
+  }
+}
+
+async function esseNahrung() {
+  try {
+    const food = bot.inventory.items().find(i => 
+      i.name.includes('bread') || i.name.includes('beef') ||
+      i.name.includes('porkchop') || i.name.includes('chicken') ||
+      i.name.includes('apple') || i.name.includes('carrot')
+    );
+    
+    if (!food) {
+      bot.chat('Keine Nahrung!');
+      return;
+    }
+    
+    bot.chat(`🍖 Esse ${food.name}...`);
+    await bot.equip(food, 'hand');
+    await bot.consume();
+    bot.chat('✅ Gegessen!');
+  } catch (err) {
+    bot.chat(`❌ ${err.message}`);
+  }
+}
+
+async function crafteItem(item, anzahl) {
+  bot.chat(`🔨 Crafte ${anzahl}x ${item}...`);
+  
+  try {
+    const mcData = minecraftData(bot.version);
+    const itemData = mcData.itemsByName[item];
+    
+    if (!itemData) {
+      bot.chat(`Kenne ${item} nicht!`);
+      return;
+    }
+    
+    const recipe = bot.recipesFor(itemData.id, null, 1, null)[0];
+    
+    if (!recipe) {
+      bot.chat(`Kein Rezept für ${item}!`);
+      return;
+    }
+    
+    await bot.craft(recipe, anzahl, null);
+    bot.chat(`✅ ${anzahl}x ${item}!`);
+  } catch (err) {
+    bot.chat(`❌ ${err.message}`);
+  }
+}
+
+async function interagiereBlock(typ) {
+  bot.chat(`🚪 Suche ${typ}...`);
+  
+  try {
+    const bloecke = bot.findBlocks({
+      matching: (b) => b && b.name.includes(typ),
+      maxDistance: 16,
+      count: 10
+    });
+    
+    if (bloecke.length === 0) {
+      bot.chat(`Kein ${typ} in der Nähe!`);
+      return;
+    }
+    
+    const block = bot.blockAt(bloecke[0]);
+    await bot.activateBlock(block);
+    bot.chat(`✅ ${typ} aktiviert!`);
+  } catch (err) {
+    bot.chat(`❌ ${err.message}`);
+  }
+}
+
+// ============================================
+// CHAT-EVENT
+// ============================================
+
+bot.on('chat', async (username, message) => {
+  if (username === bot.username) return;
+  
+  console.log(`<${username}> ${message}`);
+  
+  // Schnelle Direktbefehle
+  if (message === 'stopp') {
+    bot.pathfinder.setGoal(null);
+    bot.chat('Gestoppt!');
+    return;
+  }
+  
+  if (message === 'raus' || message === 'escape' || message === 'help') {
+    bot.chat('🆘 Versuche rauszukommen...');
+    await smartEscape();
+    return;
+  }
+  
+  if (message === 'check' || message === 'loch?') {
+    const lochInfo = istInLoch();
+    if (lochInfo.inLoch) {
+      bot.chat(`Ja, bin in Loch! ${Math.floor(lochInfo.tiefe)}m tief`);
+    } else {
+      bot.chat('Nein, alles gut!');
+    }
+    return;
+  }
+  
+  if (message === 'position') {
+    const p = bot.entity.position;
+    bot.chat(`${p.x.toFixed(0)}, ${p.y.toFixed(0)}, ${p.z.toFixed(0)}`);
+    return;
+  }
+  
+  // LLM-System
+  const antwort = await chatMitLLM(username, message);
+  
+  // Wenn leere Antwort (z.B. Fehler wurde schon von Funktion kommuniziert), nichts sagen
+  if (!antwort || antwort.trim() === '') {
+    return; // Keine zusätzliche Antwort
+  }
+  
+  if (antwort.length > 240) {
+    const teile = antwort.match(/.{1,240}/g) || [antwort];
+    for (const teil of teile) {
+      bot.chat(teil);
+      await sleep(500);
+    }
+  } else {
+    bot.chat(antwort);
+  }
+});
+
+// Fehlerbehandlung
+bot.on('error', (err) => console.error('❌', err));
+bot.on('kicked', (reason) => console.log('⚠️ Gekickt:', reason));
+bot.on('end', () => console.log('🔌 Verbindung beendet'));
+process.on('SIGINT', () => { bot.quit(); process.exit(0); });
+
