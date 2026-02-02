@@ -26,6 +26,11 @@ Ein KI-gesteuerter Minecraft Bot mit fortgeschrittenen Fähigkeiten, powered by 
 - **Intelligente Positionierung** - Steht sich nicht mehr selbst im Weg
 - **Flexible Strukturen** - Türme, Wände, Häuser, Brücken
 - **Farm-Bau** - Automatischer Bau von Weizen-Farmen mit Wasser, Acker und Zaun
+- **Template-basierter Bau** - Baut komplexe Gebäude nach JSON-Vorlagen! 🏠
+  - Automatische Bauflächen-Suche
+  - Material-Management
+  - Level-für-Level-Konstruktion
+  - Support für Grabcraft-Templates
 - **Sicherheitsabstand** - Baut mit Abstand für bessere Sicht
 
 ### 🔨 Graben & Mining
@@ -186,10 +191,20 @@ Freddiiiiii: Hi! Lass uns was starten. 🚀
 
 #### Bau & Graben:
 - `"baue einen turm"` - Baut Turm (von der Seite)
-- `"baue ein haus"` - Baut kleines Haus
+- `"baue ein haus"` - Baut kleines Haus ODER nutzt Template-System! 🏗️
 - `"grabe einen brunnen"` - Gräbt 3x10x3 Brunnen mit Ausgang
 - `"grabe 5x3x5"` - Gräbt mit Parametern
 - `"baue eine weizenfarm"` - Baut automatisch Farm
+
+#### 🆕 Template-basierter Bau:
+- `"bau mir ein haus"` - Baut Gebäude nach Template
+  - Sucht automatisch Baufläche
+  - Beschafft Materialien automatisch (Creative Mode)
+  - Baut Level für Level
+  - Templates in `templates/` Ordner
+- **Siehe**: `docs/template-bau-system.md` für Details
+
+**Hinweis**: Im Creative Mode beschafft Freddi automatisch die benötigten Materialien per `/give` Befehl!
 
 #### Ressourcen:
 - `"sammle holz"` - Sammelt Holz von Bäumen
@@ -289,11 +304,12 @@ const RESOURCE_RADIUS = 64;  // Ressourcen (Bäume, Wasser)
 
 ## 📊 Statistiken
 
-- **~2000 Zeilen Code** (bot-advanced.js)
+- **~2100 Zeilen Code** (bot-advanced.js)
 - **750 Zeilen** Spatial Intelligence
-- **15+ Dokumentations-Dateien**
-- **20+ Intent-Typen**
-- **14 Haupt-Features**
+- **900 Zeilen** Template-System (3 Module)
+- **16+ Dokumentations-Dateien**
+- **21+ Intent-Typen**
+- **15 Haupt-Features**
 
 ## 🛠️ Entwicklung
 
@@ -314,7 +330,13 @@ Teste-Szenarien in `test-*.md` Dateien:
 
 ## 📝 Changelog
 
-### Version 1.0 (Aktuell)
+### Version 1.1 (Aktuell) - Template-Bau-System
+- ✅ 🆕 Template-basierter Gebäude-Bau
+- ✅ 🆕 Automatische Bauflächen-Erkennung
+- ✅ 🆕 Material-Management-System
+- ✅ 🆕 Grabcraft-Template-Support
+
+### Version 1.0
 - ✅ Vollständige LLM-Integration
 - ✅ 360° Entity-Wahrnehmung
 - ✅ Intelligentes Kampf-System
@@ -323,6 +345,33 @@ Teste-Szenarien in `test-*.md` Dateien:
 - ✅ Räumliche Intelligenz
 - ✅ Fehler-Feedback-System
 - ✅ Konsistente Reichweiten (32m)
+
+## 📁 Projektstruktur
+
+```
+mineflayer/
+├── bot-advanced.js           # Haupt-Bot mit LLM-Integration
+├── spatial-intelligence.js   # Räumliche Intelligenz
+├── minecraft-ai-knowledge.js # Minecraft-Wissen für LLM
+├── template-loader.js        # 🆕 Template-Loader
+├── build-site-finder.js      # 🆕 Bauflächen-Suche
+├── build-executor.js         # 🆕 Build-Executor
+├── templates/                # 🆕 Gebäude-Templates (JSON)
+│   └── japarabic-house-5.json
+├── docs/                     # Dokumentation
+│   ├── template-bau-system.md  # 🆕 Template-System Doku
+│   ├── angriffs-reichweite-fix.md
+│   ├── bewegung-und-aktion-kopplung.md
+│   └── ... (15+ Dateien)
+└── package.json
+```
+
+**Kern-Module:**
+- `bot-advanced.js` - Haupt-Bot (2100+ Zeilen)
+- `spatial-intelligence.js` - Raumanalyse (750 Zeilen)
+- `template-loader.js` - Template-Parsing (310 Zeilen)
+- `build-site-finder.js` - Baugrund-Analyse (390 Zeilen)
+- `build-executor.js` - Bau-Logik (375 Zeilen)
 
 ## 🤝 Beitragen
 

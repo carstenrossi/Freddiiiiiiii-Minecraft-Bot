@@ -1,0 +1,369 @@
+---
+description: Guide for adding new features to Freddiiiiii's Intent System
+globs: bot-advanced.js
+alwaysApply: false
+---
+
+# Intent-System Guide für Eddie
+
+Diese Rule hilft Eddie dabei, neue Features zu Freddiiiiii hinzuzufügen.
+
+**WICHTIG:** Die Hauptdatei ist `bot-advanced.js` (NICHT bot-intent.js!)
+
+## 🎯 Struktur von bot-advanced.js
+
+```
+bot-advanced.js (~2490 Zeilen)
+│
+├─ 📦 IMPORTS (Zeile 1-12)
+│  └─ mineflayer, pathfinder, ollama, spatial-intelligence, template-system
+│
+├─ ⚙️ CONFIG (Zeile 14-35)
+│  └─ Bot-Einstellungen, Ollama-Verbindung, Template-System Init
+│
+├─ 🔍 UMGEBUNGS-SCANNER (Zeile 120-365)
+│  └─ scanneUmgebung() - Scannt Wasser, Bäume, Entities
+│  └─ formatiereUmgebungsInfo() - Formatiert Scan für Chat
+│
+├─ 🧠 LLM PLANNER (Zeile 400-580)
+│  └─ planeAktionen() - Hauptfunktion für Intent-Erkennung!
+│  └─ Sendet Anfrage + Umgebung ans LLM, bekommt JSON zurück
+│
+├─ ⚡ INTENT EXECUTOR (Zeile 583-875)
+│  └─ fuehreIntentAus() - Großer switch-case für alle Intents
+│  └─ HIER NEUE INTENT-CASES HINZUFÜGEN!
+│
+├─ 🎬 ACTION FUNCTIONS (Zeile 1010-2380)
+│  └─ HIER FÜGT EDDIE NEUE FEATURES HINZU!
+│  └─ geheZuPosition(), grabeBereich(), sammleHolz(), baueStruktur()
+│  └─ baueFarm(), baueTemplate(), greifeMobAn(), smartEscape(), etc.
+│
+└─ 🎮 CHAT EVENT (Zeile 2385-2490)
+   └─ Aktivierungs-System ("Freddi, baue...")
+   └─ Ruft chatMitLLM() auf
+```
+
+## ✨ Wie du neue Features hinzufügst
+
+### Schritt 1: Action Function erstellen
+
+Füge eine neue Funktion im **Action Functions Bereich** hinzu (ca. Zeile 1010-2380 in bot-advanced.js):
+
+```javascript
+// ════════════════════════════════════════
+// 🎯 FEATURE: [Dein Feature Name]
+// ════════════════════════════════════════
+// Was es macht: [Kurze Beschreibung]
+// Befehl: "[Beispiel-Befehl]"
+// ════════════════════════════════════════
+
+async function deinFeatureName(parameter1, parameter2) {
+  try {
+    // Gib Feedback dass es startet
+    bot.chat(`🎯 [Dein Feature] startet...`);
+    
+    // ─────────────────────────────────────
+    // DEIN CODE HIER
+    // ─────────────────────────────────────
+    
+    // [Logik des Features]
+    
+    // ─────────────────────────────────────
+    // Erfolgs-Meldung
+    // ─────────────────────────────────────
+    bot.chat(`✅ [Dein Feature] fertig!`);
+    
+    return { success: true, message: "Feature erfolgreich" };
+    
+  } catch (error) {
+    // Wenn was schief geht
+    console.error(`❌ Fehler in [Feature]:`, error);
+    bot.chat(`❌ Fehler: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+```
+
+### Schritt 2: Intent-Case hinzufügen
+
+In der `fuehreIntentAus()` Funktion (ca. Zeile 583), füge einen neuen case hinzu:
+
+```javascript
+switch (intent.type) {
+  // ... bestehende cases ...
+  
+  case 'dein_intent_name':
+    // Erkläre was dieser Intent macht
+    // Parameter aus intent.params holen
+    const param1 = intent.params?.parameter1 || 'default';
+    const param2 = intent.params?.parameter2 || 'default';
+    
+    // Action-Funktion aufrufen
+    return await deinFeatureName(param1, param2);
+  
+  // ... weitere cases ...
+}
+```
+
+## 📋 Template für neue Features
+
+Kopiere dieses Template und fülle es aus:
+
+```javascript
+// ════════════════════════════════════════
+// 🎯 FEATURE: [Name]
+// ════════════════════════════════════════
+// Was es macht: [Beschreibung]
+// Befehl: "[Beispiel]"
+// Parameter: [Welche Parameter? Optional/Pflicht?]
+// Beispiele:
+//   - "[Beispiel 1]"
+//   - "[Beispiel 2]"
+// ════════════════════════════════════════
+
+async function featureName(params) {
+  try {
+    // 1. Start-Feedback
+    bot.chat(`🎯 [Feature] wird ausgeführt...`);
+    
+    // 2. Validierung (falls nötig)
+    if (!params) {
+      bot.chat('❌ Parameter fehlt!');
+      return { success: false, message: 'Parameter fehlt' };
+    }
+    
+    // 3. Haupt-Logik
+    // [DEIN CODE HIER]
+    
+    // 4. Erfolgs-Feedback
+    bot.chat(`✅ Fertig!`);
+    return { success: true };
+    
+  } catch (error) {
+    // 5. Fehlerbehandlung
+    console.error('❌ Fehler:', error);
+    bot.chat(`❌ Fehler: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+```
+
+## 🎮 Beispiel-Feature: "Dance"
+
+So würde ein "dance" Feature aussehen:
+
+```javascript
+// ════════════════════════════════════════
+// 🎯 FEATURE: Tanz-Animation
+// ════════════════════════════════════════
+// Was es macht: Bot springt mehrfach
+// Befehl: "dance" oder "dance 5"
+// Parameter: anzahl (optional, default: 3)
+// ════════════════════════════════════════
+
+async function performDance(anzahl = 3) {
+  try {
+    bot.chat(`💃 Lass uns tanzen!`);
+    
+    // Springe mehrfach
+    for (let i = 0; i < anzahl; i++) {
+      bot.setControlState('jump', true);   // Springe
+      await sleep(500);                     // Warte 0.5s
+      bot.setControlState('jump', false);  // Lande
+      await sleep(300);                     // Kurze Pause
+    }
+    
+    bot.chat(`✅ ${anzahl} Sprünge! 🎉`);
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Tanz-Fehler:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Dann in parseAndExecuteIntent():
+case 'tanze':
+  const anzahl = intent.params?.anzahl || 3;
+  return await performDance(anzahl);
+```
+
+## 🔧 Wichtige Bot-Funktionen
+
+Hier sind die wichtigsten Funktionen die du nutzen kannst:
+
+### Kommunikation
+```javascript
+bot.chat("Nachricht");              // Schreibt in Chat
+console.log("Log-Nachricht");       // Schreibt in Konsole
+```
+
+### Bewegung
+```javascript
+await bot.pathfinder.goto(goal);    // Gehe zu Ziel
+bot.setControlState('jump', true);  // Springe
+bot.setControlState('forward', true); // Laufe vorwärts
+bot.setControlState('sprint', true);  // Sprinte
+```
+
+### Blöcke
+```javascript
+const block = bot.blockAt(position); // Hole Block an Position
+await bot.dig(block);                // Grabe Block ab
+await bot.placeBlock(block, face);   // Platziere Block
+bot.findBlocks({...});               // Finde Blöcke in Umgebung
+```
+
+### Inventar
+```javascript
+bot.inventory.items();               // Alle Items im Inventar
+await bot.equip(item, 'hand');       // Item in Hand nehmen
+```
+
+### Entities
+```javascript
+Object.values(bot.entities);         // Alle Entities
+bot.nearestEntity(filter);           // Nächste Entity finden
+```
+
+### Position
+```javascript
+bot.entity.position;                 // Aktuelle Position
+position.offset(x, y, z);            // Neue Position berechnen
+position.distanceTo(other);          // Distanz berechnen
+```
+
+## ⚡ Häufige Muster
+
+### Pattern 1: Zu Position gehen
+```javascript
+const goal = new goals.GoalNear(x, y, z, 1);
+await bot.pathfinder.goto(goal);
+```
+
+### Pattern 2: Nächstes X finden und hingehen
+```javascript
+// Finde nächstes Wasser
+const wasserBlocks = bot.findBlocks({
+  matching: (block) => block.name === 'water',
+  maxDistance: 32,
+  count: 1
+});
+
+if (wasserBlocks.length > 0) {
+  const pos = wasserBlocks[0];
+  const goal = new goals.GoalNear(pos.x, pos.y, pos.z, 1);
+  await bot.pathfinder.goto(goal);
+}
+```
+
+### Pattern 3: Mehrere Blöcke platzieren
+```javascript
+for (let x = 0; x < breite; x++) {
+  for (let z = 0; z < laenge; z++) {
+    const pos = startPos.offset(x, 0, z);
+    // Platziere Block bei pos
+    await sleep(100); // Kleine Pause
+  }
+}
+```
+
+### Pattern 4: Auf Event warten
+```javascript
+await sleep(millisekunden);  // Warte X Millisekunden
+// Beispiel: await sleep(1000) = 1 Sekunde warten
+```
+
+## 🐛 Debug-Tipps
+
+### Logging hinzufügen
+```javascript
+console.log('🔍 Debug:', variable);
+console.log('📍 Position:', bot.entity.position);
+```
+
+### Try-Catch nutzen
+```javascript
+try {
+  // Dein Code
+} catch (error) {
+  console.error('❌ Fehler:', error);
+  console.error('📜 Stack:', error.stack);
+}
+```
+
+### Bot-Feedback
+```javascript
+bot.chat(`Debug: ${JSON.stringify(daten)}`);
+```
+
+## ✅ Checkliste für neue Features
+
+Wenn du ein Feature hinzufügst, prüfe:
+
+- [ ] Action-Funktion im richtigen Bereich eingefügt?
+- [ ] try-catch Block vorhanden?
+- [ ] Start-Feedback (bot.chat beim Start)?
+- [ ] Erfolgs-Feedback (bot.chat bei Erfolg)?
+- [ ] Fehler-Handling (catch Block)?
+- [ ] Intent-Case hinzugefügt?
+- [ ] Parameter richtig geholt (intent.params)?
+- [ ] Kommentare die erklären was passiert?
+- [ ] Ausführliche Header-Kommentar?
+
+## 🎯 Intent-Typen die bereits existieren (in fuehreIntentAus)
+
+Schau dir diese in bot-advanced.js an als Beispiele:
+
+**Bewegung:**
+- `gehe_wasser` / `gehe_zu_wasser` - Bot geht zu Wasser
+- `gehe_baum` / `gehe_zu_baum` - Bot geht zu Bäumen
+- `gehe_berg` / `gehe_hoch` - Bot geht zum höchsten Punkt
+- `komm_spieler` - Bot kommt zum Spieler
+- `gehe_entity` / `gehe_tier` - Bot geht zu Entity (Tier/Mob)
+- `gehe_xy` - Bot geht zu Koordinaten
+- `tp_spieler` - Bot teleportiert zum Spieler
+
+**Aktionen:**
+- `graben` - Bot gräbt Bereich (Breite x Tiefe x Länge)
+- `sammle_holz` - Bot sammelt Holz
+- `bauen` - Bot baut einfache Struktur (Turm, Wand)
+- `baue_farm` - Bot baut komplette Weizen-Farm
+- `baue_template` - Bot baut Gebäude nach JSON-Template
+
+**Kampf:**
+- `angriff` - Bot greift Mob an (mit Verfolgung!)
+
+**Info:**
+- `scan` - Bot scannt Umgebung (32m)
+- `analyse` - Detaillierte Raumanalyse
+- `position` - Zeigt Position
+- `inventar` - Zeigt Inventar
+- `schaue` / `drehe` - Bot dreht sich
+
+**Sonstiges:**
+- `escape` - Bot kommt aus Loch (Pillaring/Graben)
+- `essen` - Bot isst Nahrung
+- `craften` - Bot craftet Items
+- `konversation` - Nur Chat, keine Aktion
+
+**Tipp:** Suche nach `case 'angriff':` in bot-advanced.js um zu sehen wie das Intent-System funktioniert!
+
+## 🚀 Von einfach zu komplex
+
+### Einfach (Start hier!)
+- Chat-Antworten
+- Sprünge, Bewegungen
+- Einfache Blöcke platzieren
+
+### Mittel
+- Zu Positionen/Entities navigieren
+- Mehrere Blöcke platzieren
+- Inventar-Aktionen
+
+### Fortgeschritten
+- Komplexe Bau-Strukturen
+- Multi-Step Aktionen
+- Intelligentes Verhalten
+
+**Fang klein an und baue auf! Jedes Feature macht dich besser! 💪**

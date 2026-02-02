@@ -5,6 +5,9 @@ import { Ollama } from 'ollama';
 import { Vec3 } from 'vec3';
 import { erweiterePromptMitWissen } from './minecraft-ai-knowledge.js';
 import SpatialIntelligence from './spatial-intelligence.js';
+import TemplateLoader from './template-loader.js';
+import BuildSiteFinder from './build-site-finder.js';
+import BuildExecutor from './build-executor.js';
 
 const { pathfinder, Movements, goals } = pathfinderPlugin;
 
@@ -25,6 +28,18 @@ bot.loadPlugin(pathfinder);
 // Räumliche Intelligenz (wird nach spawn initialisiert)
 let spatial = null;
 
+// Template-System
+let templateLoader = null;
+let buildSiteFinder = null;
+let buildExecutor = null;
+
+// Minecraft-Data initialisieren nach Login
+bot.once('login', () => {
+  const mcData = minecraftData(bot.version);
+  bot.mcData = mcData;
+  console.log(`✅ Minecraft-Data initialisiert für Version ${bot.version}`);
+});
+
 // Event: Bot ist verbunden
 bot.on('spawn', async () => {
   console.log('✅ Bot ist verbunden und gespawnt!');
@@ -32,6 +47,11 @@ bot.on('spawn', async () => {
   
   // Initialisiere räumliche Intelligenz
   spatial = new SpatialIntelligence(bot);
+  
+  // Initialisiere Template-System
+  templateLoader = new TemplateLoader(bot);
+  buildSiteFinder = new BuildSiteFinder(bot);
+  buildExecutor = new BuildExecutor(bot, goals);
   
   await sleep(1000);
   
@@ -485,7 +505,7 @@ NUTZE DEIN MINECRAFT-WISSEN:
 
 INTENTS (kurz):
 gehe_wasser, gehe_baum, gehe_berg, gehe_entity, komm_spieler, gehe_xy, tp_spieler, tp_xy
-graben, sammle_holz, bauen, baue_farm, angriff, essen, craften, interagieren
+graben, sammle_holz, bauen, baue_farm, baue_template, angriff, essen, craften, interagieren
 scan, analyse, position, inventar, schaue, drehe, escape, konversation
 
 JSON-Format (${istKomplex ? 'Array erlaubt' : 'Einzeln'}):
@@ -501,7 +521,8 @@ ${istKomplex ? `
 {"intent":"komm_spieler","antwort":"Ich komme!"}`}
 
 SPEZIAL-PARAMETER:
-"bauen": material, struktur, groesse
+"bauen": NUR für sehr einfache Strukturen (1-4 Blöcke, Wand, Turm). Bei "Haus" IMMER baue_template nutzen!
+"baue_template": FÜR HÄUSER! template (z.B. "japarabic-house-5"), position (optional)
 "graben": breite (b), tiefe (t), laenge (l) - z.B. 3x5x3 Brunnen → {"breite":3,"tiefe":5,"laenge":3}
 "angriff": typ (z.B. "zombie", "creeper", "llama")
 "baue_farm": typ ("weizen"/"karotten"), groesse ("klein"/"mittel"/"gross")
@@ -514,8 +535,8 @@ DENKPROZESS:
 4. Bei "baue ein Haus aus Stein" → Weißt du dass man Cobblestone braucht!
 
 BEISPIELE MIT MINECRAFT-INTELLIGENZ:
-- "baue ein Haus" → Du weißt: Häuser brauchen solides Material wie cobblestone/wood
-  → Nutze räumliche Analyse: {"intent":"analyse"} dann {"intent":"bauen",...}
+- "baue ein Haus" / "bau mir ein Haus" → IMMER Template nutzen!
+  → {"intent":"baue_template","template":"japarabic-house-5","antwort":"Ich baue ein schönes Haus!"}
 - "baue eine Farm/Weizenfarm" → Du weißt: Braucht Wasser, Acker, Seeds, Zaun
   → {"intent":"baue_farm","typ":"weizen","groesse":"klein"} ODER multi-step mit Wasser suchen
 - "gehe mining" → Du weißt: Unter Y=60 findet man Erze
@@ -527,6 +548,7 @@ BEISPIELE MIT MINECRAFT-INTELLIGENZ:
 - "töte das Lama" / "greife Zombie an" → {"intent":"angriff","typ":"llama"} oder {"intent":"angriff","typ":"zombie"}
 - "geh zum Schaf" / "lauf zur Kuh" → {"intent":"gehe_entity","typ":"sheep"} oder {"intent":"gehe_entity","typ":"cow"}
 - "grabe einen Brunnen" / "grabe 3x5x3" → {"intent":"graben","breite":3,"tiefe":5,"laenge":3,"antwort":"Ich grabe einen Brunnen!"}
+- "baue ein Haus" / "bau mir ein Gebäude" → {"intent":"baue_template","template":"japarabic-house-5","antwort":"Ich baue ein Haus für dich!"}
 
 ${istKomplex ? 'MULTI-STEP erlaubt! Plane intelligent wie ein erfahrener Minecraft-Spieler.' : 'Single-Step - aber nutze dein Wissen!'}
 
@@ -719,6 +741,13 @@ async function fuehreIntentAus(intentData, username) {
         await baueFarm(
           intentData.typ || 'weizen',
           intentData.groesse || 'klein'
+        );
+        break;
+        
+      case 'baue_template':
+        await baueTemplate(
+          intentData.template || 'japarabic-house-5',
+          intentData.position
         );
         break;
         
@@ -1033,8 +1062,9 @@ function geheZuPosition(ziel) {
   console.log(`🚶 Gehe zu: ${ziel.x}, ${ziel.y}, ${ziel.z} (aktuell Y:${Math.floor(aktuelleY)}, Diff:${Math.floor(hoehenUnterschied)})`);
   
   // Längerer Timeout für schwierige Pfade (60 Sekunden)
+  // ABER: Nicht während Template-Bau!
   setTimeout(() => {
-    if (bewegungsStatus.aktiv && !bewegungsStatus.erfolg) {
+    if (bewegungsStatus.aktiv && !bewegungsStatus.erfolg && !botBeschaeftigt) {
       console.log('⏰ Bewegungs-Timeout nach 60s!');
       bot.pathfinder.setGoal(null);
       bewegungsStatus = { aktiv: false, erfolg: false, grund: 'timeout' };
@@ -1774,6 +1804,327 @@ async function baueFarm(farmTyp = 'weizen', groesse = 'klein') {
   }
 }
 
+async function baueTemplate(templateName, position = null) {
+  bot.chat(`🏗️ Lade Template: ${templateName}...`);
+  console.log(`📋 Template-Bau gestartet: ${templateName}`);
+  
+  try {
+    // 1. Template laden
+    const template = await templateLoader.loadTemplate(templateName);
+    console.log(`✅ Template geladen: ${template.title}`);
+    console.log(`📐 Dimensionen: ${template.dimensions.width}x${template.dimensions.depth}x${template.dimensions.height}`);
+    
+    bot.chat(`Template: ${template.title} (${template.dimensions.width}x${template.dimensions.depth}x${template.dimensions.height})`);
+    
+    // 2. Baufläche finden (wenn keine Position angegeben)
+    let buildPos;
+    let siteResult = null;
+    
+    if (position) {
+      buildPos = new Vec3(position.x, position.y, position.z);
+      console.log(`📍 Nutze angegebene Position: ${buildPos}`);
+    } else {
+      console.log('🔍 Suche geeignete Baufläche...');
+      bot.chat('Suche einen guten Bauplatz...');
+      
+      siteResult = await buildSiteFinder.findBuildSite(
+        template,
+        bot.entity.position,
+        32 // Suchradius
+      );
+      
+      if (!siteResult.success && !siteResult.terraformNeeded) {
+        bot.chat('❌ Keine geeignete Baufläche gefunden!');
+        console.error('Probleme:', siteResult.issues.join(', '));
+        throw new Error('Keine Baufläche gefunden');
+      }
+      
+      buildPos = siteResult.position;
+      
+      if (siteResult.terraformNeeded) {
+        bot.chat('⚠️ Bauplatz benötigt Vorbereitung...');
+        console.log('Probleme:', siteResult.issues.join(', '));
+      } else {
+        bot.chat('✅ Perfekten Bauplatz gefunden!');
+      }
+    }
+    
+    // Runde Position auf ganze Zahlen
+    buildPos = new Vec3(
+      Math.floor(buildPos.x),
+      Math.floor(buildPos.y),
+      Math.floor(buildPos.z)
+    );
+    
+    console.log(`🏗️ Bauposition: ${buildPos.x}, ${buildPos.y}, ${buildPos.z}`);
+    
+    // 3. Material-System: Gib initial-Materialien (System füllt automatisch nach)
+    const materialCheck = buildExecutor.checkMaterials(template);
+    if (!materialCheck.sufficient) {
+      bot.chat('📦 Beschaffe Baumaterialien...');
+      
+      // Gib initial-Stacks für jedes Material
+      for (const missing of materialCheck.missing) {
+        const name = missing.name;
+        const initialAmount = Math.min(missing.missing, 64); // Erstmal 1 Stack
+        
+        console.log(`📦 Initial-Material: /give ${bot.username} ${name} ${initialAmount}`);
+        bot.chat(`/give ${bot.username} ${name} ${initialAmount}`);
+        await sleep(200);
+      }
+      
+      bot.chat('✅ Start-Materialien bereit!');
+      bot.chat('💡 System füllt automatisch nach während Bau');
+      console.log('💡 Auto-Refill: System gibt während Bau automatisch Material nach (64er Stacks)');
+      
+      await sleep(2000); // Kurze Wartezeit für erste Items
+    } else {
+      bot.chat('✅ Alle Materialien vorhanden!');
+    }
+    
+    // 3.5. Terraforming: Erstelle plane Baufläche
+    // Das ist der Schlüssel zum Erfolg - plane Fläche = keine Hindernisse, perfekte Referenz-Blöcke
+    bot.chat('🏗️ Bereite Baufläche vor...');
+    await baueFundament(buildPos, template.dimensions.width, template.dimensions.depth);
+    
+    console.log(`🏗️ Finale Bauposition: ${buildPos.x}, ${buildPos.y}, ${buildPos.z}`);
+    
+    // 4. Bau starten
+    bot.chat(`🏗️ Starte Bau von ${template.title}!`);
+    
+    const result = await buildExecutor.executeBuild(template, buildPos, {
+      continueWithoutMaterials: true, // Baue mit dem was wir haben
+      ignoreMaterials: false
+    });
+    
+    if (result.success) {
+      bot.chat(`🎉 ${template.title} fertig gebaut!`);
+      bot.chat(`📊 ${result.stats.blocksPlaced} Blöcke in ${result.duration}s`);
+    } else {
+      bot.chat(`❌ Bau fehlgeschlagen: ${result.error}`);
+      throw new Error(result.error);
+    }
+    
+  } catch (err) {
+    console.error('❌ Template-Bau Fehler:', err);
+    bot.chat(`❌ Template-Bau fehlgeschlagen: ${err.message}`);
+    throw err;
+  }
+}
+
+async function baueFundament(basePos, width, depth) {
+  console.log(`🏗️ Terraform: Erstelle plane Fläche ${width+4}x${depth+4}`);
+  bot.chat('Terraforming: Ebne Gelände ein...');
+  
+  try {
+    // Erweitere Fläche um 2 Blöcke pro Seite (Puffer)
+    const terraformWidth = width + 4;
+    const terraformDepth = depth + 4;
+    const startX = basePos.x - 2;
+    const startZ = basePos.z - 2;
+    
+    // 1. ANALYSE: Finde niedrigste solide Y-Position im Bereich
+    let minY = Infinity;
+    for (let x = 0; x < terraformWidth; x++) {
+      for (let z = 0; z < terraformDepth; z++) {
+        // Suche nach solidem Grund
+        for (let y = basePos.y; y >= basePos.y - 5; y--) {
+          const checkPos = new Vec3(startX + x, y, startZ + z);
+          const block = bot.blockAt(checkPos);
+          
+          if (block && block.boundingBox === 'block' && block.name !== 'air') {
+            minY = Math.min(minY, y);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Falls nichts gefunden, nutze basePos.y - 1
+    if (minY === Infinity) {
+      minY = basePos.y - 1;
+    }
+    
+    const fundamentY = minY;
+    console.log(`📐 Fundament-Ebene gefunden bei Y=${fundamentY}`);
+    bot.chat(`Ebene Fläche bei Y=${fundamentY}...`);
+    
+    // 2. GRABEN: Entferne alles ÜBER dem Fundament (Säulen-weise!)
+    console.log('⛏️ Phase 1: Grabe Hindernisse ab (säulenweise)...');
+    let gegraben = 0;
+    const maxHeight = 10;
+    
+    // Analyse: Sind wir ÜBER oder UNTER dem durchschnittlichen Terrain?
+    const botY = bot.entity.position.y;
+    const grabVonOben = botY >= fundamentY; // Von oben wenn Bot höher als Fundament
+    
+    console.log(`📐 Bot-Y: ${Math.floor(botY)}, Fundament-Y: ${fundamentY}`);
+    console.log(`⛏️ Strategie: Grabe von ${grabVonOben ? 'OBEN nach UNTEN' : 'UNTEN nach OBEN'}`);
+    
+    // Grabe Position für Position als SÄULE
+    for (let x = 0; x < terraformWidth; x++) {
+      for (let z = 0; z < terraformDepth; z++) {
+        // Für diese X,Z Position: Grabe ALLE Blöcke in der Säule
+        const yStart = grabVonOben ? (fundamentY + maxHeight) : (fundamentY + 1);
+        const yEnd = grabVonOben ? (fundamentY + 1) : (fundamentY + maxHeight);
+        const yStep = grabVonOben ? -1 : 1;
+        
+        for (let y = yStart; grabVonOben ? (y > yEnd) : (y <= yEnd); y += yStep) {
+          const pos = new Vec3(startX + x, y, startZ + z);
+          const block = bot.blockAt(pos);
+          
+          // Grabe alle soliden Blöcke
+          if (block && block.name !== 'air' && block.boundingBox === 'block') {
+            try {
+              const dist = bot.entity.position.distanceTo(pos);
+              
+              // Navigiere falls zu weit
+              if (dist > 4.5) {
+                // Gehe zur Basis dieser Säule
+                const targetPos = new Vec3(startX + x, fundamentY + 1, startZ + z);
+                
+                bot.pathfinder.setGoal(new goals.GoalNear(targetPos.x, targetPos.y, targetPos.z, 3));
+                
+                // Warte bis nahe genug
+                for (let wait = 0; wait < 30; wait++) {
+                  await sleep(100);
+                  if (bot.entity.position.distanceTo(pos) <= 4.5) {
+                    break;
+                  }
+                }
+                
+                bot.pathfinder.setGoal(null);
+              }
+              
+              // Grabe Block
+              await bot.dig(block);
+              gegraben++;
+              
+              if (gegraben % 20 === 0) {
+                console.log(`  ⛏️ Gegraben: ${gegraben} Blöcke`);
+              }
+              
+              await sleep(80); // Kurze Pause
+              
+            } catch (err) {
+              // Ignoriere Einzelfehler
+            }
+          }
+        }
+      }
+    }
+    
+    console.log(`✅ Phase 1 fertig: ${gegraben} Blöcke gegraben`);
+    bot.chat(`${gegraben} Blöcke abgetragen!`);
+    
+    // 3. AUFFÜLLEN: Fülle Lücken im Fundament
+    console.log('🏗️ Phase 2: Fülle Fundament auf...');
+    
+    // Gebe Material für Fundament
+    const benoetigte = Math.ceil((terraformWidth * terraformDepth) / 64);
+    for (let i = 0; i < benoetigte; i++) {
+      bot.chat(`/give ${bot.username} dirt 64`);
+      await sleep(100);
+    }
+    await sleep(2000); // Warte auf Items
+    
+    let gefuellt = 0;
+    for (let x = 0; x < terraformWidth; x++) {
+      for (let z = 0; z < terraformDepth; z++) {
+        const pos = new Vec3(startX + x, fundamentY, startZ + z);
+        const block = bot.blockAt(pos);
+        
+        // Fülle nur wenn Luft oder kein solider Block
+        if (!block || block.name === 'air' || block.boundingBox !== 'block') {
+          try {
+            const fillMaterial = bot.inventory.items().find(i => 
+              i.name === 'dirt' || i.name === 'cobblestone' || i.name === 'stone'
+            );
+            
+            if (!fillMaterial) break;
+            
+            await bot.equip(fillMaterial, 'hand');
+            
+            // Finde Referenz unter der Position
+            const unterPos = pos.offset(0, -1, 0);
+            const unterBlock = bot.blockAt(unterPos);
+            
+            if (unterBlock && unterBlock.name !== 'air') {
+              await bot.placeBlock(unterBlock, new Vec3(0, 1, 0));
+              gefuellt++;
+              
+              if (gefuellt % 10 === 0) {
+                console.log(`  🏗️ Gefüllt: ${gefuellt} Blöcke`);
+              }
+              
+              await sleep(80);
+            }
+          } catch (err) {
+            // Ignoriere Fehler
+          }
+        }
+      }
+    }
+    
+    console.log(`✅ Phase 2 fertig: ${gefuellt} Blöcke gefüllt`);
+    bot.chat(`✅ Terrain vorbereitet! (${gegraben} abgetragen, ${gefuellt} aufgefüllt)`);
+    
+    // Update: Setze basePos.y auf Fundament-Ebene + 1
+    basePos.y = fundamentY + 1;
+    
+    await sleep(1000);
+    
+  } catch (err) {
+    console.error('❌ Terraform-Fehler:', err.message);
+    bot.chat('⚠️ Terraforming teilweise fertig, starte Bau...');
+  }
+  
+  return;
+  
+  // DEAKTIVIERT: Automatisches Fundament (zu viele Fehler)
+  /*
+  try {
+    let platziert = 0;
+    const fundamentY = basePos.y - 1;
+    
+    for (let x = 0; x < width; x++) {
+      for (let z = 0; z < depth; z++) {
+        const pos = new Vec3(basePos.x + x, fundamentY, basePos.z + z);
+        const block = bot.blockAt(pos);
+        
+        if (!block || block.name === 'air' || block.boundingBox !== 'block') {
+          try {
+            const material = bot.inventory.items().find(i => 
+              i.name === 'dirt' || i.name === 'cobblestone' || i.name === 'stone'
+            );
+            
+            if (!material) break;
+            
+            await bot.equip(material, 'hand');
+            const unterPos = pos.offset(0, -1, 0);
+            const unterBlock = bot.blockAt(unterPos);
+            
+            if (unterBlock && unterBlock.name !== 'air') {
+              await bot.placeBlock(unterBlock, new Vec3(0, 1, 0));
+              platziert++;
+              await sleep(50);
+            }
+          } catch (err) {
+            // Ignoriere Einzelfehler
+          }
+        }
+      }
+    }
+    
+    console.log(`✅ Fundament fertig: ${platziert} Blöcke platziert`);
+    bot.chat(`✅ Fundament vorbereitet (${platziert} Blöcke)`);
+    
+  } catch (err) {
+    console.error('❌ Fundament-Fehler:', err.message);
+  }
+  */
+}
+
 async function greifeMobAn(mobTyp) {
   bot.chat(`⚔️ Suche ${mobTyp || 'Mob'}...`);
   
@@ -2036,20 +2387,67 @@ bot.on('chat', async (username, message) => {
   
   console.log(`<${username}> ${message}`);
   
-  // Schnelle Direktbefehle
-  if (message === 'stopp') {
+  // ============================================
+  // AKTIVIERUNGS-SYSTEM
+  // ============================================
+  
+  // Prüfe ob Bot angesprochen wird
+  const botNames = ['freddi', 'freddiiiiii', '@freddi', 'bot'];
+  const messageLower = message.toLowerCase();
+  
+  let isAddressed = false;
+  let cleanedMessage = message;
+  
+  // Option 1: Nachricht beginnt mit Bot-Name + Komma/Doppelpunkt
+  // "Freddi, baue ein haus" → true
+  for (const name of botNames) {
+    if (messageLower.startsWith(name + ',') || 
+        messageLower.startsWith(name + ':') ||
+        messageLower.startsWith(name + ' ')) {
+      isAddressed = true;
+      // Entferne Bot-Namen aus Nachricht
+      cleanedMessage = message.substring(name.length).trim();
+      if (cleanedMessage.startsWith(',') || cleanedMessage.startsWith(':')) {
+        cleanedMessage = cleanedMessage.substring(1).trim();
+      }
+      break;
+    }
+  }
+  
+  // Option 2: Nachricht enthält @freddi
+  if (messageLower.includes('@freddi') || messageLower.includes('@bot')) {
+    isAddressed = true;
+    cleanedMessage = message.replace(/@freddi[^\s]*/gi, '').replace(/@bot/gi, '').trim();
+  }
+  
+  // Schnelle Direktbefehle (funktionieren IMMER)
+  if (message === 'stopp' || message === 'stop') {
     bot.pathfinder.setGoal(null);
     bot.chat('Gestoppt!');
     return;
   }
   
-  if (message === 'raus' || message === 'escape' || message === 'help') {
+  if (message === 'fertig' || message === 'ready' || message === 'done') {
+    // Wird vom Material-Warte-Loop automatisch erkannt
+    console.log('✅ Spieler hat "fertig" gesagt');
+    return;
+  }
+  
+  // Andere Direktbefehle nur wenn adressiert
+  if (!isAddressed) {
+    // Ignoriere Nachricht wenn Bot nicht angesprochen wurde
+    return;
+  }
+  
+  console.log(`✅ Bot wurde angesprochen: "${cleanedMessage}"`);
+  
+  if (cleanedMessage === 'raus' || cleanedMessage === 'escape' || cleanedMessage === 'help') {
     bot.chat('🆘 Versuche rauszukommen...');
     await smartEscape();
     return;
   }
   
-  if (message === 'check' || message === 'loch?') {
+  if (cleanedMessage === 'check' || cleanedMessage === 'loch?') {
     const lochInfo = istInLoch();
     if (lochInfo.inLoch) {
       bot.chat(`Ja, bin in Loch! ${Math.floor(lochInfo.tiefe)}m tief`);
@@ -2059,14 +2457,14 @@ bot.on('chat', async (username, message) => {
     return;
   }
   
-  if (message === 'position') {
+  if (cleanedMessage === 'position') {
     const p = bot.entity.position;
     bot.chat(`${p.x.toFixed(0)}, ${p.y.toFixed(0)}, ${p.z.toFixed(0)}`);
     return;
   }
   
-  // LLM-System
-  const antwort = await chatMitLLM(username, message);
+  // LLM-System (mit gereinigter Nachricht)
+  const antwort = await chatMitLLM(username, cleanedMessage);
   
   // Wenn leere Antwort (z.B. Fehler wurde schon von Funktion kommuniziert), nichts sagen
   if (!antwort || antwort.trim() === '') {
