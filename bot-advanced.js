@@ -38,6 +38,24 @@ bot.once('login', () => {
   const mcData = minecraftData(bot.version);
   bot.mcData = mcData;
   console.log(`✅ Minecraft-Data initialisiert für Version ${bot.version}`);
+  
+  // ════════════════════════════════════════
+  // 🔧 FIX: Chat-Signierung für Minecraft 1.21+
+  // ════════════════════════════════════════
+  // Problem: Minecraft 1.21+ verlangt Chat-Signierung für normale Nachrichten.
+  // Mineflayer kann das nicht → Bot wird gekickt!
+  // Lösung: Alle normalen Chat-Messages automatisch zu /say umwandeln.
+  // /say ist ein Server-Command und braucht KEINE Signierung!
+  // ════════════════════════════════════════
+  const originalChat = bot.chat.bind(bot);
+  bot.chat = (message) => {
+    if (!message.startsWith('/')) {
+      originalChat(`/say ${message}`);
+    } else {
+      originalChat(message);
+    }
+  };
+  console.log('🔧 Chat-Fix aktiviert (alle Messages → /say)');
 });
 
 // Event: Bot ist verbunden
@@ -76,6 +94,32 @@ bot.on('spawn', async () => {
 let lochCheckInterval = null;
 let letzterEscapeVersuch = 0;
 let botBeschaeftigt = false; // Globaler Status
+
+// ════════════════════════════════════════
+// 🛡️ MACE-MODUS SYSTEM
+// ════════════════════════════════════════
+let maceModus = {
+  aktiv: false,              // Ist Mace-Modus an?
+  spieler: null,             // Welcher Spieler wird angeschaut
+  spielerUsername: null,     // Username des Spielers
+  startPosition: null,       // Wo Freddi stehen bleiben soll
+  updateInterval: null,      // Interval für Kopf-Drehung und Updates
+  startZeit: null,           // Wann wurde Mace gestartet
+  mitSchild: false           // Hat Freddi ein Schild? (wichtig für Update-Loop)
+};
+
+// ════════════════════════════════════════
+// ⚔️ SWORD-MODUS SYSTEM
+// ════════════════════════════════════════
+let swordModus = {
+  aktiv: false,              // Ist Sword-Modus an?
+  spieler: null,             // Welcher Spieler wird bekämpft
+  spielerUsername: null,     // Username des Spielers
+  kampfInterval: null,       // Interval für Kampf-Loop
+  startZeit: null,           // Wann wurde Sword gestartet
+  mitSchaden: true,          // true = echter Schaden (kann sterben), false = easy mode (unsterblich)
+  letzterAngriff: 0          // Timestamp vom letzten Angriff (für Cooldown)
+};
 
 function starteLochUeberwachung() {
   // Verhindere mehrfache Intervals
@@ -506,6 +550,7 @@ NUTZE DEIN MINECRAFT-WISSEN:
 INTENTS (kurz):
 gehe_wasser, gehe_baum, gehe_berg, gehe_entity, komm_spieler, gehe_xy, tp_spieler, tp_xy
 graben, sammle_holz, bauen, baue_farm, baue_template, angriff, essen, craften, interagieren
+mace, mace_start, mace_easy, easy, mace_stop, training_dummy, stop
 scan, analyse, position, inventar, schaue, drehe, escape, konversation
 
 JSON-Format (${istKomplex ? 'Array erlaubt' : 'Einzeln'}):
@@ -549,6 +594,9 @@ BEISPIELE MIT MINECRAFT-INTELLIGENZ:
 - "geh zum Schaf" / "lauf zur Kuh" → {"intent":"gehe_entity","typ":"sheep"} oder {"intent":"gehe_entity","typ":"cow"}
 - "grabe einen Brunnen" / "grabe 3x5x3" → {"intent":"graben","breite":3,"tiefe":5,"laenge":3,"antwort":"Ich grabe einen Brunnen!"}
 - "baue ein Haus" / "bau mir ein Gebäude" → {"intent":"baue_template","template":"japarabic-house-5","antwort":"Ich baue ein Haus für dich!"}
+- "mace" / "mace start" / "training dummy" → {"intent":"mace","antwort":"🛡️ Mace-Modus aktiviert! Ich blocke jetzt."}
+- "mace easy" / "easy" → {"intent":"mace_easy","antwort":"😊 Easy-Modus aktiviert! Kein Schild!"}
+- "stop" / "mace stop" → {"intent":"mace_stop","antwort":"Mace-Modus beendet!"}
 
 ${istKomplex ? 'MULTI-STEP erlaubt! Plane intelligent wie ein erfahrener Minecraft-Spieler.' : 'Single-Step - aber nutze dein Wissen!'}
 
@@ -768,6 +816,23 @@ async function fuehreIntentAus(intentData, username) {
         
       case 'interagieren':
         await interagiereBlock(intentData.blockTyp || intentData.typ || 'door');
+        break;
+        
+      case 'mace':
+      case 'mace_start':
+      case 'training_dummy':
+        return await starteMaceModus(username, true); // MIT Schild
+        
+      case 'mace_easy':
+      case 'easy':
+      case 'mace_easy_start':
+        return await starteMaceModus(username, false); // OHNE Schild
+        
+      case 'mace_stop':
+      case 'stop':
+        if (maceModus.aktiv) {
+          return stoppeMaceModus();
+        }
         break;
         
       case 'scan':
@@ -1081,9 +1146,13 @@ bot.on('goal_reached', () => {
 
 bot.on('path_update', (r) => {
   if (r.status === 'noPath') {
-    console.log('❌ Kein Pfad!');
-    bewegungsStatus = { aktiv: false, erfolg: false, grund: 'kein_pfad' };
-    bot.chat('❌ Ich komme nicht hin - kein Pfad möglich!');
+    // NUR loggen wenn KEIN Kampf-Modus aktiv ist!
+    if (!swordModus.aktiv && !maceModus.aktiv) {
+      console.log('❌ Kein Pfad!');
+      bewegungsStatus = { aktiv: false, erfolg: false, grund: 'kein_pfad' };
+      bot.chat('❌ Ich komme nicht hin - kein Pfad möglich!');
+    }
+    // Im Kampf-Modus: Stille ignorieren
   }
 });
 
@@ -2329,6 +2398,772 @@ async function esseNahrung() {
   }
 }
 
+// ════════════════════════════════════════
+// 🛡️ MACE - SCHILD FUNKTION
+// ════════════════════════════════════════
+// Was es macht: Gibt Freddi ein Schild und hält es hoch
+// Befehl: "Freddi Mace" oder "Freddi mace"
+// ════════════════════════════════════════
+
+// ════════════════════════════════════════
+// 🛡️ MACE-TRAININGSMODUS FUNKTIONEN
+// ════════════════════════════════════════
+// Was es macht: Freddi steht still, blockt mit Schild, schaut Spieler an
+// Befehl: "Freddi, mace" zum Starten, "Freddi, stop" zum Beenden
+// Easy-Modus: "Freddi, mace easy" - ohne Schild!
+// ════════════════════════════════════════
+
+async function starteMaceModus(username, mitSchild = true) {
+  try {
+    // Prüfe ob Mace-Modus schon aktiv
+    if (maceModus.aktiv) {
+      bot.chat('⚠️ Mace-Modus läuft bereits!');
+      console.log('⚠️ Mace-Modus bereits aktiv');
+      return 'Mace bereits aktiv';
+    }
+    
+    console.log(`🛡️ Starte Mace-Modus für: ${username} (mit Schild: ${mitSchild})`);
+    
+    if (mitSchild) {
+      bot.chat('🛡️ MACE-MODUS AKTIVIERT!');
+    } else {
+      bot.chat('😊 MACE EASY-MODUS AKTIVIERT!');
+      bot.chat('💪 Kein Schild - Easy-Ziel!');
+    }
+    
+    // 1. Finde Spieler-Entity
+    const spieler = bot.players[username];
+    if (!spieler || !spieler.entity) {
+      bot.chat('❌ Ich kann dich nicht finden!');
+      console.log('❌ Spieler-Entity nicht gefunden');
+      return 'Spieler nicht gefunden';
+    }
+    
+    // 2. Speichere aktuelle Position als Stand-Position
+    maceModus.startPosition = bot.entity.position.clone();
+    maceModus.spieler = spieler.entity;
+    maceModus.spielerUsername = username;
+    maceModus.startZeit = Date.now();
+    
+    console.log('📍 Start-Position gespeichert:', maceModus.startPosition);
+    
+    // 3. Gib Freddi ein Schild (NUR wenn mitSchild = true)
+    if (mitSchild) {
+      let schild = bot.inventory.items().find(i => i.name === 'shield');
+      
+      if (!schild) {
+        console.log('📦 Gebe Schild via /give');
+        bot.chat(`/give ${bot.username} minecraft:shield 1`);
+        await sleep(2000);
+        
+        schild = bot.inventory.items().find(i => i.name === 'shield');
+      }
+      
+      if (!schild) {
+        bot.chat('❌ Kein Schild bekommen!');
+        bot.chat('💡 Tipp: Gib mir manuell ein Schild oder aktiviere Cheats mit /op Freddiiiiii');
+        console.log('❌ Kein Schild im Inventar');
+        return 'Kein Schild';
+      }
+      
+      // 4. Equippe Schild in HAUPTHAND (nicht Offhand!)
+      console.log('🛡️ Equippe Schild in HAUPTHAND');
+      await bot.equip(schild, 'hand');  // HAUPTHAND statt off-hand!
+      await sleep(500);
+      
+      // 5. Aktiviere Schild-Block BEVOR die Effekte kommen
+      console.log('🛡️ Aktiviere Schild (Block-Modus) - 3x zur Sicherheit');
+      for (let i = 0; i < 3; i++) {
+        bot.activateItem();
+        await sleep(200);
+        console.log(`  🛡️ Aktivierung ${i+1}/3`);
+      }
+    } else {
+      console.log('😊 Easy-Modus: Überspringe Schild');
+    }
+    
+    // WICHTIG: Längere Pause damit Server nicht overwhelmed wird
+    await sleep(1000);
+    
+    // 6. Gib Spieler PVP-Equipment
+    console.log('⚔️ Gebe Spieler PVP-Equipment');
+    bot.chat('⚔️ Hier ist dein Equipment!');
+    
+    await sleep(800); // Extra Pause VOR Commands
+    
+    // Mace mit Windburst 3 (neue 1.21+ Syntax)
+    bot.chat(`/give ${username} minecraft:mace[minecraft:enchantments={levels:{"minecraft:wind_burst":3}}] 1`);
+    await sleep(800);
+    
+    // Mace mit Windburst 2
+    bot.chat(`/give ${username} minecraft:mace[minecraft:enchantments={levels:{"minecraft:wind_burst":2}}] 1`);
+    await sleep(800);
+    
+    // Mace mit Windburst 1
+    bot.chat(`/give ${username} minecraft:mace[minecraft:enchantments={levels:{"minecraft:wind_burst":1}}] 1`);
+    await sleep(800); // LÄNGERE Pausen zwischen Commands!
+    
+    // Netherite Axt
+    bot.chat(`/give ${username} minecraft:netherite_axe 1`);
+    await sleep(800);
+    
+    // 64 Wind Charges
+    bot.chat(`/give ${username} minecraft:wind_charge 64`);
+    await sleep(800);
+    
+    // Netherite Boots mit Feather Falling 4 (neue 1.21+ Syntax)
+    bot.chat(`/give ${username} minecraft:netherite_boots[minecraft:enchantments={levels:{"minecraft:feather_falling":4}}] 1`);
+    await sleep(1000); // Extra lange Pause vor Effekten
+    
+    // 7. Gib beiden unendlich Leben (Resistance + Regeneration)
+    console.log('💖 Gebe unendlich Leben');
+    bot.chat('💖 Aktiviere Unsterblichkeit!');
+    
+    await sleep(500); // Pause VOR Effekten
+    
+    // Spieler unverwundbar machen
+    bot.chat(`/effect give ${username} minecraft:resistance 999999 255 true`);
+    await sleep(400); // Längere Pausen
+    bot.chat(`/effect give ${username} minecraft:regeneration 999999 255 true`);
+    await sleep(400);
+    bot.chat(`/effect give ${username} minecraft:health_boost 999999 10 true`);
+    await sleep(400);
+    
+    // Freddi auch unverwundbar machen
+    bot.chat(`/effect give ${bot.username} minecraft:resistance 999999 255 true`);
+    await sleep(400);
+    bot.chat(`/effect give ${bot.username} minecraft:regeneration 999999 255 true`);
+    await sleep(400);
+    bot.chat(`/effect give ${bot.username} minecraft:health_boost 999999 10 true`);
+    await sleep(1000); // LÄNGERE Pause vor Schild-Reaktivierung
+    
+    // WICHTIG: Schild MEHRFACH reaktivieren nach Effekten (NUR wenn mit Schild)
+    if (mitSchild) {
+      console.log('🛡️ Reaktiviere Schild nach Effekten (3x mit Pausen)');
+      try {
+        for (let i = 0; i < 3; i++) {
+          bot.deactivateItem();
+          await sleep(200);
+          bot.activateItem();
+          await sleep(200);
+          console.log(`  🛡️ Reaktivierung ${i+1}/3`);
+        }
+        console.log('✅ Schild sollte jetzt DEFINITIV aktiv sein');
+      } catch (schildErr) {
+        console.error('⚠️ Schild-Reaktivierung fehlgeschlagen:', schildErr.message);
+      }
+    } else {
+      console.log('😊 Easy-Modus: Kein Schild zum aktivieren');
+    }
+    
+    // 8. Aktiviere Mace-Modus
+    maceModus.aktiv = true;
+    maceModus.mitSchild = mitSchild; // WICHTIG: Speichere ob Schild aktiv ist
+    
+    // 8. Starte Update-Loop
+    starteMaceUpdateLoop();
+    
+    bot.chat('🛡️ Bereit! Ich blocke und schaue dich an!');
+    bot.chat('💪 Viel Erfolg beim Training!');
+    console.log('✅ Mace-Modus erfolgreich gestartet');
+    
+    return 'Mace-Modus gestartet';
+    
+  } catch (error) {
+    console.error('❌ Mace-Start Fehler:', error);
+    bot.chat(`❌ Mace-Start fehlgeschlagen: ${error.message}`);
+    
+    // Cleanup bei Fehler
+    maceModus.aktiv = false;
+    if (maceModus.updateInterval) {
+      clearInterval(maceModus.updateInterval);
+      maceModus.updateInterval = null;
+    }
+    
+    return 'Fehler beim Mace-Start';
+  }
+}
+
+// ────────────────────────────────────────
+// Update-Loop für Mace-Modus
+// ────────────────────────────────────────
+function starteMaceUpdateLoop() {
+  console.log('🔁 Starte Mace Update-Loop (10x pro Sekunde)');
+  
+  let tickCount = 0;
+  
+  maceModus.updateInterval = setInterval(async () => {
+    if (!maceModus.aktiv) {
+      clearInterval(maceModus.updateInterval);
+      maceModus.updateInterval = null;
+      return;
+    }
+    
+    tickCount++;
+    
+    try {
+      // Schaue Spieler an (jedes Mal) - OHNE await!
+      maceLookAtPlayer(); // Kein await = nicht blockierend
+      
+      // Position checken (alle 0.2 Sekunden = 2 Ticks) - VIEL SCHNELLER! ⚡
+      if (tickCount % 2 === 0) {
+        checkPositionLock();
+      }
+      
+      // Schild reaktivieren (alle 5 Sekunden = 50 Ticks) - NUR wenn Schild vorhanden!
+      if (tickCount % 50 === 0 && maceModus.mitSchild) {
+        console.log('🛡️ 5-Sekunden-Check: Reaktiviere Schild');
+        try {
+          bot.deactivateItem();
+          await sleep(100);
+          bot.activateItem();
+        } catch (shieldErr) {
+          console.error('⚠️ Schild-Reaktivierung fehlgeschlagen:', shieldErr.message);
+        }
+      }
+      
+    } catch (error) {
+      console.error('⚠️ Mace Update-Loop Fehler:', error.message);
+      console.error('Stack:', error.stack);
+    }
+    
+  }, 100); // 100ms = 10 Updates pro Sekunde
+}
+
+// ────────────────────────────────────────
+// Schaue kontinuierlich zum Spieler
+// ────────────────────────────────────────
+async function maceLookAtPlayer() {
+  if (!maceModus.aktiv || !maceModus.spieler) return;
+  
+  try {
+    // Prüfe ob Spieler-Entity noch valide ist
+    if (!maceModus.spieler.isValid) {
+      // Versuche Spieler neu zu finden
+      const spieler = bot.players[maceModus.spielerUsername];
+      if (spieler && spieler.entity) {
+        maceModus.spieler = spieler.entity;
+        console.log('🔄 Spieler-Entity neu gefunden');
+      } else {
+        console.log('❌ Spieler-Entity verloren');
+        bot.chat('❌ Ich habe dich verloren! Mace-Modus beendet.');
+        stoppeMaceModus();
+        return;
+      }
+    }
+    
+    const spielerPos = maceModus.spieler.position;
+    const botPos = bot.entity.position;
+    
+    // Berechne Yaw (horizontale Drehung)
+    const dx = spielerPos.x - botPos.x;
+    const dz = spielerPos.z - botPos.z;
+    const yaw = Math.atan2(-dx, -dz);
+    
+    // Berechne Pitch (vertikale Drehung - schaue zum Kopf des Spielers)
+    const dy = (spielerPos.y + 1.6) - (botPos.y + 1.6); // +1.6 = Augenhöhe
+    const groundDistance = Math.sqrt(dx * dx + dz * dz);
+    const pitch = -Math.atan2(dy, groundDistance);
+    
+    // Setze Blickrichtung (force = true für sofortige Drehung)
+    // WICHTIG: Kein await! Das könnte der Crash-Grund sein
+    bot.look(yaw, pitch, true);
+    
+  } catch (error) {
+    // Ignoriere ALLE lookAt Fehler komplett
+    // Nicht mal loggen - das könnte Spam verursachen
+  }
+}
+
+// ────────────────────────────────────────
+// Prüfe ob Freddi von seiner Position abgewichen ist
+// ────────────────────────────────────────
+function checkPositionLock() {
+  if (!maceModus.aktiv || !maceModus.startPosition) return;
+  
+  const currentPos = bot.entity.position;
+  const startPos = maceModus.startPosition;
+  
+  // Berechne Distanz
+  const distanz = currentPos.distanceTo(startPos);
+  
+  // Wenn mehr als 0.5 Blöcke abgewichen (Knockback, Physik, etc.)
+  if (distanz > 0.5) {
+    console.log(`📍 Position-Abweichung: ${distanz.toFixed(2)} Blöcke - teleportiere zurück`);
+    
+    // Teleportiere zurück zur Start-Position
+    bot.chat(`/tp ${bot.username} ${startPos.x.toFixed(2)} ${startPos.y.toFixed(2)} ${startPos.z.toFixed(2)}`);
+    
+    // Reaktiviere Schild nach Teleport
+    setTimeout(() => {
+      if (maceModus.aktiv) {
+        bot.activateItem();
+      }
+    }, 200);
+  }
+}
+
+// ────────────────────────────────────────
+// Stoppt Mace-Modus
+// ────────────────────────────────────────
+function stoppeMaceModus() {
+  if (!maceModus.aktiv) {
+    bot.chat('⚠️ Mace-Modus war nicht aktiv!');
+    return 'Mace war nicht aktiv';
+  }
+  
+  console.log('🛑 Stoppe Mace-Modus');
+  
+  // Stoppe Update-Loop
+  if (maceModus.updateInterval) {
+    clearInterval(maceModus.updateInterval);
+    maceModus.updateInterval = null;
+  }
+  
+  // Deaktiviere Schild-Block und Bewegung freigeben
+  try { bot.deactivateItem(); } catch(e) {}
+  try {
+    bot.pathfinder.setGoal(null);
+    bot.setControlState('forward', false);
+    bot.setControlState('sprint', false);
+    bot.setControlState('jump', false);
+  } catch(e) {}
+  
+  // Speichere Infos bevor Reset
+  const username = maceModus.spielerUsername;
+  const dauer = Math.floor((Date.now() - maceModus.startZeit) / 1000);
+  const sekunden = dauer % 60;
+  
+  console.log(`📊 Mace-Modus lief ${dauer} Sekunden`);
+  
+  // Setze Status SOFORT zurück
+  maceModus.aktiv = false;
+  maceModus.spieler = null;
+  maceModus.spielerUsername = null;
+  maceModus.startPosition = null;
+  maceModus.mitSchild = false;
+  
+  // Cleanup mit LANGEN PAUSEN (damit Server nicht kickt!)
+  setTimeout(() => {
+    try { bot.chat(`Mace-Modus beendet! (${sekunden}s)`); } catch(e) {}
+  }, 500);
+  
+  setTimeout(() => {
+    try { if (username) bot.chat(`/clear ${username}`); } catch(e) {}
+  }, 2000);
+  
+  setTimeout(() => {
+    try { bot.chat(`/clear ${bot.username}`); } catch(e) {}
+  }, 3500);
+  
+  setTimeout(() => {
+    try { if (username) bot.chat(`/effect clear ${username}`); } catch(e) {}
+  }, 5000);
+  
+  setTimeout(() => {
+    try { bot.chat(`/effect clear ${bot.username}`); } catch(e) {}
+  }, 6500);
+  
+  return 'Mace-Modus gestoppt';
+}
+
+// ════════════════════════════════════════
+// ⚔️ SWORD-KAMPFMODUS FUNKTIONEN
+// ════════════════════════════════════════
+// Was es macht: 1v1 Schwertkampf mit Freddi
+// Modi:
+//   - "Freddi, sword" = Echter Kampf (kann sterben)
+//   - "Freddi, sword easy" = Trainingskampf (unsterblich)
+// Befehl zum Stoppen: "Freddi, stop"
+// ════════════════════════════════════════
+
+async function starteSwordModus(username, mitSchaden = true) {
+  try {
+    // Prüfe ob Sword-Modus schon aktiv
+    if (swordModus.aktiv) {
+      bot.chat('⚠️ Sword-Modus läuft bereits!');
+      console.log('⚠️ Sword-Modus bereits aktiv');
+      return 'Sword bereits aktiv';
+    }
+    
+    // Prüfe ob Mace-Modus aktiv ist
+    if (maceModus.aktiv) {
+      bot.chat('⚠️ Stoppe erst den Mace-Modus!');
+      return 'Mace aktiv';
+    }
+    
+    console.log(`⚔️ Starte Sword-Modus für: ${username} (mit Schaden: ${mitSchaden})`);
+    
+    if (mitSchaden) {
+      bot.chat('⚔️ SWORD-MODUS AKTIVIERT! Echter Kampf!');
+    } else {
+      bot.chat('⚔️ SWORD EASY-MODUS AKTIVIERT! Training!');
+    }
+    
+    // 1. Finde Spieler-Entity
+    const spieler = bot.players[username];
+    if (!spieler || !spieler.entity) {
+      bot.chat('❌ Ich kann dich nicht finden!');
+      console.log('❌ Spieler-Entity nicht gefunden');
+      return 'Spieler nicht gefunden';
+    }
+    
+    // 2. Speichere Spieler-Infos SOFORT
+    swordModus.spieler = spieler.entity;
+    swordModus.spielerUsername = username;
+    swordModus.startZeit = Date.now();
+    swordModus.mitSchaden = mitSchaden;
+    swordModus.letzterAngriff = 0;
+    swordModus.aktiv = true; // SETZE AKTIV SOFORT!
+    
+    console.log('📝 Spieler-Info gespeichert, Modus aktiv');
+    
+    // 2.5 KOMPLETTER RESET (wichtig nach Mace-Modus!)
+    console.log('🧹 Lösche alte Effekte und reset Bewegung');
+    
+    // Pathfinder resetten
+    swordPathfinderSetup = false;
+    try {
+      bot.pathfinder.setGoal(null);
+      bot.setControlState('forward', false);
+      bot.setControlState('sprint', false);
+      bot.setControlState('jump', false);
+    } catch(e) {}
+    
+    // Effekte löschen
+    bot.chat(`/effect clear ${username}`);
+    await sleep(800);
+    bot.chat(`/effect clear ${bot.username}`);
+    await sleep(1000);
+    
+    // 3. Gib NUR dem Spieler Equipment (Freddi benutzt was er hat!)
+    console.log('⚔️ Gebe Spieler Equipment');
+    await sleep(1000);
+    
+    // Spieler Equipment (5 Commands)
+    bot.chat(`/give ${username} diamond_sword 1`);
+    await sleep(800);
+    bot.chat(`/give ${username} diamond_helmet 1`);
+    await sleep(800);
+    bot.chat(`/give ${username} diamond_chestplate 1`);
+    await sleep(800);
+    bot.chat(`/give ${username} diamond_leggings 1`);
+    await sleep(800);
+    bot.chat(`/give ${username} diamond_boots 1`);
+    await sleep(1000);
+    
+    // Freddi Equipment - NUR wenn er nichts hat!
+    console.log('⚔️ Gebe Freddi Equipment (falls nötig)');
+    const hatSchwert = bot.inventory.items().find(i => i.name.includes('sword'));
+    const hatRuestung = bot.inventory.items().find(i => i.name.includes('helmet') || i.name.includes('chestplate'));
+    
+    if (!hatSchwert || !hatRuestung) {
+      console.log('📦 Freddi braucht Equipment');
+      bot.chat(`/give ${bot.username} diamond_sword 1`);
+      await sleep(800);
+      bot.chat(`/give ${bot.username} diamond_helmet 1`);
+      await sleep(800);
+      bot.chat(`/give ${bot.username} diamond_chestplate 1`);
+      await sleep(800);
+      bot.chat(`/give ${bot.username} diamond_leggings 1`);
+      await sleep(800);
+      bot.chat(`/give ${bot.username} diamond_boots 1`);
+      await sleep(1000);
+    } else {
+      console.log('✅ Freddi hat schon Equipment');
+    }
+    
+    // 4. Equippe Freddis Rüstung (mit Error-Handling)
+    console.log('👔 Equippe Freddis Rüstung');
+    await sleep(1000);
+    
+    try {
+      const helmet = bot.inventory.items().find(i => i.name === 'diamond_helmet');
+      if (helmet) {
+        await bot.equip(helmet, 'head');
+        await sleep(500);
+      }
+      
+      const chestplate = bot.inventory.items().find(i => i.name === 'diamond_chestplate');
+      if (chestplate) {
+        await bot.equip(chestplate, 'torso');
+        await sleep(500);
+      }
+      
+      const leggings = bot.inventory.items().find(i => i.name === 'diamond_leggings');
+      if (leggings) {
+        await bot.equip(leggings, 'legs');
+        await sleep(500);
+      }
+      
+      const boots = bot.inventory.items().find(i => i.name === 'diamond_boots');
+      if (boots) {
+        await bot.equip(boots, 'feet');
+        await sleep(500);
+      }
+      
+      const sword = bot.inventory.items().find(i => i.name === 'diamond_sword');
+      if (sword) {
+        await bot.equip(sword, 'hand');
+        await sleep(500);
+      }
+      
+      console.log('✅ Rüstung equippt');
+    } catch (equipErr) {
+      console.error('⚠️ Fehler beim Equippen:', equipErr.message);
+      // Nicht abbrechen, weitermachen!
+    }
+    
+    // 5. Wenn Easy-Modus: Unsterblichkeit (MIT LANGER PAUSE UND LANGSAMEN EFFECTS!)
+    if (!mitSchaden) {
+      console.log('💖 Bereite Unsterblichkeit vor (Easy-Modus)');
+      console.log('⏳ Warte 3 Sekunden damit Server Commands vergisst...');
+      
+      // LANGE PAUSE damit Server die /give Commands "vergisst"!
+      await sleep(3000); // 3 SEKUNDEN PAUSE!
+      
+      console.log('💖 Gebe jetzt Unsterblichkeit - LANGSAM!');
+      
+      // Spieler unverwundbar machen - MIT LANGEN PAUSEN!
+      bot.chat(`/effect give ${username} minecraft:resistance 999999 255 true`);
+      await sleep(1200); // LANGE PAUSE!
+      bot.chat(`/effect give ${username} minecraft:regeneration 999999 255 true`);
+      await sleep(1200); // LANGE PAUSE!
+      bot.chat(`/effect give ${username} minecraft:health_boost 999999 10 true`);
+      await sleep(1500); // EXTRA LANGE PAUSE!
+      
+      // Freddi auch unverwundbar machen - MIT LANGEN PAUSEN!
+      bot.chat(`/effect give ${bot.username} minecraft:resistance 999999 255 true`);
+      await sleep(1200); // LANGE PAUSE!
+      bot.chat(`/effect give ${bot.username} minecraft:regeneration 999999 255 true`);
+      await sleep(1200); // LANGE PAUSE!
+      bot.chat(`/effect give ${bot.username} minecraft:health_boost 999999 10 true`);
+      await sleep(1500); // EXTRA LANGE PAUSE!
+      
+      console.log('✅ Unsterblichkeit erfolgreich gegeben!');
+      
+      // WICHTIG: LANGE PAUSE nach Effekten bevor weitere Chat-Messages!
+      console.log('⏳ Warte nochmal 2 Sekunden bevor Kampf startet...');
+      await sleep(2000); // Noch 2 Sekunden warten!
+    }
+    
+    // 6. Starte Kampf-Loop SOFORT (kein Countdown, keine Chat-Messages!)
+    console.log('⚔️ Starte Kampf-Loop');
+    // KEINE bot.chat() Messages mehr! Der Server hat genug Commands gesehen!
+    console.log('⚔️ KAMPF GESTARTET!');
+    
+    await sleep(500);
+    starteSwordKampfLoop();
+    
+    // KEINE weiteren Chat-Messages!
+    console.log('✅ Sword-Modus erfolgreich gestartet');
+    
+    return 'Sword-Modus gestartet';
+    
+  } catch (err) {
+    console.error('❌ Fehler beim Starten des Sword-Modus:', err);
+    console.error('Stack:', err.stack);
+    bot.chat('❌ Fehler beim Starten!');
+    
+    // Cleanup bei Fehler
+    swordModus.aktiv = false;
+    swordModus.spieler = null;
+    swordModus.spielerUsername = null;
+    
+    return 'Fehler';
+  }
+}
+
+// ────────────────────────────────────────
+// ⚔️ Sword Kampf-Loop
+// ────────────────────────────────────────
+// Was es macht: Läuft kontinuierlich während Sword-Modus aktiv ist
+// Checkt: Spieler-Status, Bot-Gesundheit, führt Angriffe aus
+// ────────────────────────────────────────
+function starteSwordKampfLoop() {
+  console.log('🔁 Starte Sword Kampf-Loop (2x pro Sekunde)');
+  
+  swordModus.kampfInterval = setInterval(() => {
+    // Prüfe ob Modus noch aktiv
+    if (!swordModus.aktiv) {
+      clearInterval(swordModus.kampfInterval);
+      swordModus.kampfInterval = null;
+      console.log('⚠️ Sword-Loop gestoppt - Modus nicht mehr aktiv');
+      return;
+    }
+    
+    try {
+      // Prüfe ob Spieler noch existiert und valide ist
+      const spieler = swordModus.spieler;
+      if (!spieler || !spieler.isValid) {
+        console.log('⚠️ Spieler-Entity nicht mehr valide');
+        if (swordModus.mitSchaden) {
+          // Im echten Kampf-Modus = Spieler ist gestorben oder disconnected
+          stoppeSwordModus('Du hast gewonnen! 🎉');
+        }
+        return;
+      }
+      
+      // Prüfe Bot-Gesundheit (nur im echten Kampf-Modus)
+      if (swordModus.mitSchaden && bot.health <= 0) {
+        console.log('💀 Bot ist gestorben');
+        stoppeSwordModus('Freddi ist gestorben! Du hast gewonnen! 🎉');
+        return;
+      }
+      
+      // Führe Angriff aus (mit Cooldown-Management) - OHNE await!
+      swordAngriff(); // Kein await = nicht blockierend!
+      
+    } catch (error) {
+      console.error('⚠️ Sword Kampf-Loop Fehler:', error.message);
+      console.error('Stack:', error.stack);
+    }
+    
+  }, 500); // 500ms = 2x pro Sekunde
+}
+
+// ────────────────────────────────────────
+// ⚔️ Sword Angriffs-Logik
+// ────────────────────────────────────────
+// Was es macht: Greift Spieler an mit Cooldown-Management
+// Intelligenz: Läuft zum Spieler wenn zu weit, wartet auf Cooldown
+// ────────────────────────────────────────
+// Pathfinder wird EINMAL initialisiert (nicht jedes Mal neu!)
+let swordPathfinderSetup = false;
+
+function swordAngriff() {
+  if (!swordModus.aktiv || !swordModus.spieler) return;
+  
+  try {
+    const spieler = swordModus.spieler;
+    
+    // Prüfe ob Spieler noch valide
+    if (!spieler.isValid) {
+      return;
+    }
+    
+    // Pathfinder EINMAL initialisieren (nicht jedes Mal!)
+    if (!swordPathfinderSetup) {
+      try {
+        const mcData = minecraftData(bot.version);
+        const movements = new Movements(bot, mcData);
+        movements.canDig = false;
+        movements.allowParkour = true;  // Kann springen!
+        movements.scaffoldingBlocks = [];
+        bot.pathfinder.setMovements(movements);
+        swordPathfinderSetup = true;
+      } catch (e) {
+        // Stille Fehler
+      }
+    }
+    
+    const distanz = bot.entity.position.distanceTo(spieler.position);
+    
+    // Cooldown-Check (600ms = 0.6 Sekunden)
+    const jetzt = Date.now();
+    const zeitSeitLetztemAngriff = jetzt - swordModus.letzterAngriff;
+    
+    // Wenn zu weit weg: Laufe zum Spieler mit Pathfinder!
+    if (distanz > 3.5) {
+      try {
+        bot.pathfinder.setGoal(new goals.GoalFollow(spieler, 2), true);
+      } catch (pathErr) {
+        // Stille Fehler - kein Spam!
+      }
+    } 
+    // Wenn nah genug: Greife an!
+    else {
+      // Stoppe Pathfinder
+      try { bot.pathfinder.setGoal(null); } catch(e) {}
+      
+      // Cooldown bereit? Dann angreifen!
+      if (zeitSeitLetztemAngriff >= 600) {
+        // Schaue zum Spieler
+        const spielerPos = spieler.position.offset(0, spieler.height * 0.5, 0);
+        bot.lookAt(spielerPos, false);
+        
+        // Angriff!
+        bot.attack(spieler);
+        swordModus.letzterAngriff = jetzt;
+      }
+    }
+    
+  } catch (err) {
+    // Stille Fehler - kein Console-Spam!
+  }
+}
+
+// ────────────────────────────────────────
+// 🛑 Sword-Modus stoppen
+// ────────────────────────────────────────
+function stoppeSwordModus(grund = 'Manuell gestoppt') {
+  console.log(`🛑 Stoppe Sword-Modus: ${grund}`);
+  
+  // Stoppe Kampf-Interval
+  if (swordModus.kampfInterval) {
+    clearInterval(swordModus.kampfInterval);
+    swordModus.kampfInterval = null;
+  }
+  
+  // Stoppe Bewegung
+  try {
+    bot.pathfinder.setGoal(null);
+    bot.setControlState('forward', false);
+    bot.setControlState('sprint', false);
+    bot.setControlState('jump', false);
+  } catch (err) {
+    // Stille Fehler
+  }
+  
+  // Reset Pathfinder-Flag
+  swordPathfinderSetup = false;
+  
+  // Setze Status SOFORT zurück (damit kein Loop mehr läuft)
+  const username = swordModus.spielerUsername;
+  const warEasyModus = !swordModus.mitSchaden;
+  const dauer = Math.floor((Date.now() - swordModus.startZeit) / 1000);
+  const minuten = Math.floor(dauer / 60);
+  const sekunden = dauer % 60;
+  
+  swordModus.aktiv = false;
+  swordModus.spieler = null;
+  swordModus.spielerUsername = null;
+  swordModus.mitSchaden = true;
+  swordModus.letzterAngriff = 0;
+  
+  console.log(`📊 Sword-Modus lief ${dauer} Sekunden`);
+  
+  // KEINE bot.chat() Messages! Nur /commands mit Verzögerung!
+  // Benutze /say statt bot.chat() - das ist ein Server-Command!
+  setTimeout(() => {
+    try { bot.chat(`⚔️ Sword-Modus beendet! (${sekunden}s)`); } catch(e) {}
+  }, 500);
+  
+  setTimeout(() => {
+    try {
+      if (username) bot.chat(`/clear ${username}`);
+    } catch(e) {}
+  }, 2000);
+  
+  setTimeout(() => {
+    try { bot.chat(`/clear ${bot.username}`); } catch(e) {}
+  }, 3500);
+  
+  if (warEasyModus) {
+    setTimeout(() => {
+      try {
+        if (username) bot.chat(`/effect clear ${username}`);
+      } catch(e) {}
+    }, 5000);
+    
+    setTimeout(() => {
+      try { bot.chat(`/effect clear ${bot.username}`); } catch(e) {}
+    }, 6500);
+  }
+  
+  return 'Sword-Modus gestoppt';
+}
+
 async function crafteItem(item, anzahl) {
   bot.chat(`🔨 Crafte ${anzahl}x ${item}...`);
   
@@ -2441,6 +3276,39 @@ bot.on('chat', async (username, message) => {
   
   console.log(`✅ Bot wurde angesprochen: "${cleanedMessage}"`);
   
+  // Mace-Modus Befehle (höchste Priorität)
+  if (cleanedMessage === 'mace' || cleanedMessage === 'mace start') {
+    await starteMaceModus(username, true); // MIT Schild
+    return;
+  }
+  
+  if (cleanedMessage === 'mace easy') {
+    await starteMaceModus(username, false); // OHNE Schild
+    return;
+  }
+  
+  // Sword-Modus Befehle
+  if (cleanedMessage === 'sword' || cleanedMessage === 'sword start') {
+    await starteSwordModus(username, true); // MIT Schaden (echter Kampf)
+    return;
+  }
+  
+  if (cleanedMessage === 'sword easy') {
+    await starteSwordModus(username, false); // OHNE Schaden (unsterblich)
+    return;
+  }
+  
+  if (cleanedMessage === 'stop' || cleanedMessage === 'mace stop' || cleanedMessage === 'sword stop') {
+    if (maceModus.aktiv) {
+      stoppeMaceModus();
+    } else if (swordModus.aktiv) {
+      stoppeSwordModus('Manuell gestoppt');
+    } else {
+      bot.chat('⚠️ Kein Modus aktiv!');
+    }
+    return;
+  }
+  
   if (cleanedMessage === 'raus' || cleanedMessage === 'escape' || cleanedMessage === 'help') {
     bot.chat('🆘 Versuche rauszukommen...');
     await smartEscape();
@@ -2484,7 +3352,68 @@ bot.on('chat', async (username, message) => {
 
 // Fehlerbehandlung
 bot.on('error', (err) => console.error('❌', err));
-bot.on('kicked', (reason) => console.log('⚠️ Gekickt:', reason));
-bot.on('end', () => console.log('🔌 Verbindung beendet'));
+bot.on('kicked', (reason) => {
+  console.log('⚠️ Gekickt:', reason);
+  
+  // Stoppe Sword-Modus wenn aktiv
+  if (swordModus.aktiv) {
+    console.log('🛑 Stoppe Sword-Modus wegen Kick');
+    if (swordModus.kampfInterval) {
+      clearInterval(swordModus.kampfInterval);
+      swordModus.kampfInterval = null;
+    }
+    swordModus.aktiv = false;
+  }
+  
+  // Stoppe Mace-Modus wenn aktiv
+  if (maceModus.aktiv) {
+    console.log('🛑 Stoppe Mace-Modus wegen Kick');
+    if (maceModus.updateInterval) {
+      clearInterval(maceModus.updateInterval);
+      maceModus.updateInterval = null;
+    }
+    maceModus.aktiv = false;
+  }
+});
+bot.on('end', () => {
+  console.log('🔌 Verbindung beendet');
+  
+  // Stoppe Sword-Modus wenn aktiv
+  if (swordModus.aktiv) {
+    console.log('🛑 Stoppe Sword-Modus wegen Disconnect');
+    if (swordModus.kampfInterval) {
+      clearInterval(swordModus.kampfInterval);
+      swordModus.kampfInterval = null;
+    }
+    swordModus.aktiv = false;
+  }
+  
+  // Stoppe Mace-Modus wenn aktiv
+  if (maceModus.aktiv) {
+    console.log('🛑 Stoppe Mace-Modus wegen Disconnect');
+    if (maceModus.updateInterval) {
+      clearInterval(maceModus.updateInterval);
+      maceModus.updateInterval = null;
+    }
+    maceModus.aktiv = false;
+  }
+});
 process.on('SIGINT', () => { bot.quit(); process.exit(0); });
+
+// ════════════════════════════════════════
+// 💖 HEALTH MONITORING (für Sword-Modus)
+// ════════════════════════════════════════
+// Erkennt wenn Bot oder Spieler sterben (nur im echten Kampf-Modus)
+bot.on('health', () => {
+  // Nur checken wenn Sword-Modus aktiv UND mit echtem Schaden
+  if (swordModus.aktiv && swordModus.mitSchaden) {
+    // Check Bot-Gesundheit
+    if (bot.health <= 0) {
+      console.log('💀 Bot ist gestorben (Health-Event)');
+      stoppeSwordModus('Freddi ist gestorben! Du hast gewonnen! 🎉');
+    }
+  }
+});
+
+// Spieler-Tod wird in der Kampf-Loop erkannt (wenn entity.isValid false wird)
 
