@@ -143,6 +143,47 @@ let copyPaste = {
 };
 
 // ════════════════════════════════════════
+// 🏃 PARKOUR-GENERATOR SYSTEM
+// ════════════════════════════════════════
+let parkourModus = {
+  aktiv: false,
+  spielerUsername: null,
+  startZeit: null,
+  zielPosition: null,
+  checkInterval: null,
+  bloecke: []              // Alle platzierten Bloecke (zum Aufräumen)
+};
+
+const parkourConfig = {
+  easy: {
+    sprungAnzahl: 15,
+    minDistanz: 1, maxDistanz: 2,
+    minHoehe: 0, maxHoehe: 1,
+    plattformGroesse: 2,   // 2x2 Plattformen
+    blockTypen: ['stone', 'oak_planks', 'cobblestone', 'stone_bricks'],
+    spezialChance: 0       // Keine Spezial-Bloecke
+  },
+  medium: {
+    sprungAnzahl: 20,
+    minDistanz: 1, maxDistanz: 3,
+    minHoehe: -1, maxHoehe: 2,
+    plattformGroesse: 2,
+    blockTypen: ['stone', 'oak_planks', 'cobblestone', 'stone_bricks'],
+    spezialChance: 0.25    // 25% Spezial-Bloecke
+  },
+  hard: {
+    sprungAnzahl: 25,
+    minDistanz: 2, maxDistanz: 4,
+    minHoehe: -2, maxHoehe: 3,
+    plattformGroesse: 1,   // 1x1 Plattformen!
+    blockTypen: ['stone', 'stone_bricks'],
+    spezialChance: 0.4     // 40% Spezial-Bloecke
+  }
+};
+
+const spezialBloecke = ['ice', 'packed_ice', 'slime_block', 'soul_sand'];
+
+// ════════════════════════════════════════
 // 🐕 FOLLOW-MODUS SYSTEM
 // ════════════════════════════════════════
 let followModus = {
@@ -3573,6 +3614,220 @@ async function findeBlock(suchbegriff, username) {
 }
 
 // ════════════════════════════════════════
+// 🏃 PARKOUR-GENERATOR FUNKTIONEN
+// ════════════════════════════════════════
+async function generiereParkour(username, schwierigkeit) {
+  if (maceModus.aktiv || swordModus.aktiv || crystalModus.aktiv || followModus.aktiv) {
+    bot.chat('Stoppe erst den aktuellen Modus!');
+    return;
+  }
+  
+  if (parkourModus.aktiv) {
+    bot.chat('Parkour laeuft schon! Sag "Freddi parkour stop" zum Stoppen.');
+    return;
+  }
+  
+  const config = parkourConfig[schwierigkeit];
+  if (!config) {
+    bot.chat('Unbekannte Schwierigkeit! Nutze: easy, medium, hard');
+    return;
+  }
+  
+  parkourModus.aktiv = true;
+  parkourModus.spielerUsername = username;
+  parkourModus.bloecke = [];
+  
+  bot.chat(`🏃 Baue ${schwierigkeit.toUpperCase()} Parkour (${config.sprungAnzahl} Spruenge)...`);
+  console.log(`🏃 Parkour-Generator: ${schwierigkeit} fuer ${username}`);
+  
+  // Kreativ-Modus fuer schnelles Bauen
+  bot.chat(`/gamemode creative ${bot.username}`);
+  await sleep(1000);
+  
+  const startPos = {
+    x: Math.floor(bot.entity.position.x),
+    y: Math.floor(bot.entity.position.y),
+    z: Math.floor(bot.entity.position.z)
+  };
+  
+  // Start-Plattform (3x3 aus Quartz fuer guten Kontrast)
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      const bx = startPos.x + dx;
+      const bz = startPos.z + dz;
+      bot.chat(`/setblock ${bx} ${startPos.y - 1} ${bz} quartz_block`);
+      parkourModus.bloecke.push({ x: bx, y: startPos.y - 1, z: bz });
+      await sleep(50);
+    }
+  }
+  
+  // Richtungen fuer Variation: 0=+x, 1=+z, 2=-x, 3=-z
+  let aktX = startPos.x;
+  let aktY = startPos.y - 1;
+  let aktZ = startPos.z;
+  let letzteRichtung = 1; // Starte nach vorne (+z)
+  
+  for (let i = 0; i < config.sprungAnzahl; i++) {
+    // Zufaellige Richtung (bevorzugt vorwaerts, manchmal seitlich)
+    let richtung;
+    const richtungsWuerfel = Math.random();
+    if (richtungsWuerfel < 0.5) {
+      richtung = letzteRichtung; // Gleiche Richtung weiter
+    } else if (richtungsWuerfel < 0.75) {
+      richtung = (letzteRichtung + 1) % 4; // 90 Grad rechts
+    } else {
+      richtung = (letzteRichtung + 3) % 4; // 90 Grad links
+    }
+    
+    // Distanz berechnen
+    const distanz = config.minDistanz + Math.floor(Math.random() * (config.maxDistanz - config.minDistanz + 1));
+    
+    // Hoehen-Unterschied
+    const hoehe = config.minHoehe + Math.floor(Math.random() * (config.maxHoehe - config.minHoehe + 1));
+    
+    // Position berechnen
+    switch (richtung) {
+      case 0: aktX += distanz + 1; break; // +X
+      case 1: aktZ += distanz + 1; break; // +Z
+      case 2: aktX -= distanz + 1; break; // -X
+      case 3: aktZ -= distanz + 1; break; // -Z
+    }
+    aktY += hoehe;
+    
+    // Block-Typ waehlen
+    let blockTyp;
+    if (Math.random() < config.spezialChance) {
+      blockTyp = spezialBloecke[Math.floor(Math.random() * spezialBloecke.length)];
+    } else {
+      blockTyp = config.blockTypen[Math.floor(Math.random() * config.blockTypen.length)];
+    }
+    
+    // Plattform bauen
+    const groesse = config.plattformGroesse;
+    for (let dx = 0; dx < groesse; dx++) {
+      for (let dz = 0; dz < groesse; dz++) {
+        const bx = aktX + dx;
+        const bz = aktZ + dz;
+        bot.chat(`/setblock ${bx} ${aktY} ${bz} ${blockTyp}`);
+        parkourModus.bloecke.push({ x: bx, y: aktY, z: bz });
+        await sleep(50);
+      }
+    }
+    
+    // Bei Leiter-Spruengen (nur hard): Manchmal Leiter an der Seite
+    if (schwierigkeit === 'hard' && hoehe >= 2 && Math.random() < 0.3) {
+      for (let ly = 1; ly <= hoehe; ly++) {
+        bot.chat(`/setblock ${aktX - 1} ${aktY - hoehe + ly} ${aktZ} ladder[facing=east]`);
+        parkourModus.bloecke.push({ x: aktX - 1, y: aktY - hoehe + ly, z: aktZ });
+        await sleep(50);
+      }
+    }
+    
+    letzteRichtung = richtung;
+    
+    // Alle 5 Spruenge kurze Pause
+    if (i % 5 === 4) {
+      await sleep(200);
+    }
+  }
+  
+  // Ziel-Plattform: Gold-Block (3x3) + Beacon-Look
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      bot.chat(`/setblock ${aktX + dx} ${aktY} ${aktZ + dz} gold_block`);
+      parkourModus.bloecke.push({ x: aktX + dx, y: aktY, z: aktZ + dz });
+      await sleep(50);
+    }
+  }
+  // Leuchtfeuer ueber dem Ziel
+  bot.chat(`/setblock ${aktX} ${aktY + 1} ${aktZ} torch`);
+  parkourModus.bloecke.push({ x: aktX, y: aktY + 1, z: aktZ });
+  
+  parkourModus.zielPosition = { x: aktX, y: aktY + 1, z: aktZ };
+  
+  await sleep(500);
+  bot.chat(`🏃 Parkour fertig! ${config.sprungAnzahl} Spruenge, Schwierigkeit: ${schwierigkeit.toUpperCase()}`);
+  bot.chat('Stell dich auf die Start-Plattform (Quartz) und spring los!');
+  bot.chat('Ziel: Goldene Plattform am Ende!');
+  
+  // Timer starten
+  parkourModus.startZeit = Date.now();
+  
+  // Ziel-Check: Alle 500ms pruefen ob Spieler am Ziel ist
+  parkourModus.checkInterval = setInterval(() => {
+    if (!parkourModus.aktiv) return;
+    
+    try {
+      const spieler = bot.players[parkourModus.spielerUsername]?.entity;
+      if (!spieler) return;
+      
+      const sp = spieler.position;
+      const ziel = parkourModus.zielPosition;
+      
+      // Spieler ist auf/neben der Gold-Plattform (3 Block Radius, gleiche Hoehe +/- 2)
+      const dx = Math.abs(sp.x - ziel.x);
+      const dy = Math.abs(sp.y - ziel.y);
+      const dz = Math.abs(sp.z - ziel.z);
+      
+      if (dx < 2 && dy < 3 && dz < 2) {
+        // ZIEL ERREICHT!
+        const zeitMs = Date.now() - parkourModus.startZeit;
+        const sekunden = (zeitMs / 1000).toFixed(1);
+        const minuten = Math.floor(zeitMs / 60000);
+        const restSek = ((zeitMs % 60000) / 1000).toFixed(1);
+        
+        if (minuten > 0) {
+          bot.chat(`🏆 GESCHAFFT! Zeit: ${minuten}m ${restSek}s`);
+        } else {
+          bot.chat(`🏆 GESCHAFFT! Zeit: ${sekunden} Sekunden!`);
+        }
+        
+        if (zeitMs < 30000) {
+          bot.chat('🔥 Unter 30 Sekunden! Du bist ein Parkour-Profi!');
+        } else if (zeitMs < 60000) {
+          bot.chat('💪 Unter einer Minute! Richtig gut!');
+        } else {
+          bot.chat('✅ Gut gemacht! Versuch es nochmal fuer eine bessere Zeit!');
+        }
+        
+        stoppeParkour(false); // Stoppen aber Bloecke stehen lassen
+      }
+    } catch(e) {}
+  }, 500);
+}
+
+function stoppeParkour(entfernen = true) {
+  console.log('🛑 Parkour gestoppt');
+  
+  if (parkourModus.checkInterval) {
+    clearInterval(parkourModus.checkInterval);
+    parkourModus.checkInterval = null;
+  }
+  
+  // Bloecke entfernen wenn gewuenscht
+  if (entfernen && parkourModus.bloecke.length > 0) {
+    bot.chat('🧹 Raeume Parkour auf...');
+    let i = 0;
+    const aufraeum = setInterval(() => {
+      if (i >= parkourModus.bloecke.length) {
+        clearInterval(aufraeum);
+        bot.chat('✅ Parkour aufgeraeumt!');
+        return;
+      }
+      const b = parkourModus.bloecke[i];
+      bot.chat(`/setblock ${b.x} ${b.y} ${b.z} air`);
+      i++;
+    }, 50);
+  }
+  
+  parkourModus.aktiv = false;
+  parkourModus.spielerUsername = null;
+  parkourModus.startZeit = null;
+  parkourModus.zielPosition = null;
+  parkourModus.bloecke = [];
+}
+
+// ════════════════════════════════════════
 // 🏗️ CHUNK FLATTEN - Macht den ganzen Chunk flach
 // ════════════════════════════════════════
 async function flattenChunk(username) {
@@ -3886,6 +4141,7 @@ bot.on('chat', async (username, message) => {
   if (message === 'stopp' || message === 'stop') {
     if (followModus.aktiv) stoppeFollowModus();
     if (crystalModus.aktiv) stoppeCrystalModus();
+    if (parkourModus.aktiv) stoppeParkour(true);
     try { bot.pathfinder.setGoal(null); } catch(e) {}
     bot.chat('Gestoppt!');
     return;
@@ -3966,6 +4222,29 @@ bot.on('chat', async (username, message) => {
       await findeBlock(suchbegriff, username);
     } else {
       bot.chat('❌ Was soll ich suchen? z.B. "finde diamanten"');
+    }
+    return;
+  }
+  
+  // ── Parkour-Befehle ──
+  if (cleanedMessage === 'parkour easy') {
+    await generiereParkour(username, 'easy');
+    return;
+  }
+  if (cleanedMessage === 'parkour medium' || cleanedMessage === 'parkour mittel') {
+    await generiereParkour(username, 'medium');
+    return;
+  }
+  if (cleanedMessage === 'parkour hard' || cleanedMessage === 'parkour schwer') {
+    await generiereParkour(username, 'hard');
+    return;
+  }
+  if (cleanedMessage === 'parkour stop' || cleanedMessage === 'parkour entfernen') {
+    if (parkourModus.aktiv) {
+      stoppeParkour(true);
+      bot.chat('🛑 Parkour gestoppt und aufgeraeumt!');
+    } else {
+      bot.chat('Kein Parkour aktiv!');
     }
     return;
   }
@@ -4059,13 +4338,16 @@ bot.on('chat', async (username, message) => {
     return;
   }
   
-  if (cleanedMessage === 'stop' || cleanedMessage === 'mace stop' || cleanedMessage === 'sword stop' || cleanedMessage === 'crystal stop') {
+  if (cleanedMessage === 'stop' || cleanedMessage === 'mace stop' || cleanedMessage === 'sword stop' || cleanedMessage === 'crystal stop' || cleanedMessage === 'parkour stop') {
     if (maceModus.aktiv) {
       stoppeMaceModus();
     } else if (swordModus.aktiv) {
       stoppeSwordModus('Manuell gestoppt');
     } else if (crystalModus.aktiv) {
       stoppeCrystalModus();
+    } else if (parkourModus.aktiv) {
+      stoppeParkour(true);
+      bot.chat('🛑 Parkour gestoppt und aufgeraeumt!');
     } else if (followModus.aktiv) {
       stoppeFollowModus();
     } else {
@@ -4135,6 +4417,11 @@ bot.on('kicked', (reason) => {
     crystalModus.totemInterval = null;
     crystalModus.aktiv = false;
   }
+  if (parkourModus.aktiv) {
+    if (parkourModus.checkInterval) clearInterval(parkourModus.checkInterval);
+    parkourModus.checkInterval = null;
+    parkourModus.aktiv = false;
+  }
   if (followModus.aktiv) {
     if (followModus.followInterval) clearInterval(followModus.followInterval);
     followModus.followInterval = null;
@@ -4158,6 +4445,11 @@ bot.on('end', () => {
     if (crystalModus.totemInterval) clearInterval(crystalModus.totemInterval);
     crystalModus.totemInterval = null;
     crystalModus.aktiv = false;
+  }
+  if (parkourModus.aktiv) {
+    if (parkourModus.checkInterval) clearInterval(parkourModus.checkInterval);
+    parkourModus.checkInterval = null;
+    parkourModus.aktiv = false;
   }
   if (followModus.aktiv) {
     if (followModus.followInterval) clearInterval(followModus.followInterval);

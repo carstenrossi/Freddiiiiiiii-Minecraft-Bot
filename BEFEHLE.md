@@ -76,6 +76,18 @@ Schreibe im Minecraft-Chat immer **"Freddi, [Befehl]"** oder **"Freddi [Befehl]"
 
 ---
 
+## 🏃 Parkour-Generator
+
+| Befehl | Was passiert |
+|--------|-------------|
+| `Freddi parkour easy` | Baut einen einfachen Parkour (15 Sprünge, kurze Distanzen, 2x2 Plattformen). Timer läuft! |
+| `Freddi parkour medium` | Mittlerer Parkour (20 Sprünge, Höhenunterschiede, Eis und Slime-Blöcke). |
+| `Freddi parkour hard` | Schwerer Parkour (25 Sprünge, große Distanzen, 1x1 Plattformen, Eis, Slime, Leitern). |
+| `Freddi parkour stop` | Stoppt den Parkour und räumt alle Blöcke auf. |
+| Ziel erreichen | Wenn du auf den goldenen Blöcken am Ende landest, stoppt der Timer und zeigt deine Zeit! |
+
+---
+
 ## 🏃 Bewegung & Allgemein
 
 | Befehl | Was passiert |
