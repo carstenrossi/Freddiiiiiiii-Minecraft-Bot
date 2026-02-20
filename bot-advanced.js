@@ -156,32 +156,55 @@ let parkourModus = {
 
 const parkourConfig = {
   easy: {
-    sprungAnzahl: 15,
-    minDistanz: 1, maxDistanz: 2,
-    minHoehe: 0, maxHoehe: 1,
-    plattformGroesse: 2,   // 2x2 Plattformen
-    blockTypen: ['stone', 'oak_planks', 'cobblestone', 'stone_bricks'],
-    spezialChance: 0       // Keine Spezial-Bloecke
+    sprungAnzahl: 12,
+    // Minecraft Jump: max 1 hoch, ~4 weit mit Sprint, ~2.5 ohne Sprint
+    sprungTypen: [
+      { dx: 2, dy: 0, chance: 0.35 },  // Geradeaus kurz
+      { dx: 3, dy: 0, chance: 0.25 },  // Geradeaus mittel
+      { dx: 2, dy: 1, chance: 0.20 },  // Hoch + kurz
+      { dx: 1, dy: 1, chance: 0.10 },  // Nur hoch
+      { dx: 3, dy: -1, chance: 0.10 }, // Runter + weit
+    ],
+    plattformGroesse: 2,
+    seitenOffset: 1,       // Max 1 Block nach links/rechts
+    blockTypen: ['stone_bricks', 'oak_planks', 'cobblestone', 'smooth_stone'],
+    spezialChance: 0
   },
   medium: {
-    sprungAnzahl: 20,
-    minDistanz: 1, maxDistanz: 3,
-    minHoehe: -1, maxHoehe: 2,
+    sprungAnzahl: 18,
+    sprungTypen: [
+      { dx: 2, dy: 0, chance: 0.15 },
+      { dx: 3, dy: 0, chance: 0.25 },
+      { dx: 2, dy: 1, chance: 0.20 },
+      { dx: 3, dy: 1, chance: 0.15 },  // Sprint-Jump hoch
+      { dx: 4, dy: -1, chance: 0.10 }, // Weiter Sprint-Jump runter
+      { dx: 1, dy: 2, chance: 0.10 },  // 2 Bloecke hoch (Leiter!)
+      { dx: 4, dy: -2, chance: 0.05 }, // Weit runter
+    ],
     plattformGroesse: 2,
-    blockTypen: ['stone', 'oak_planks', 'cobblestone', 'stone_bricks'],
-    spezialChance: 0.25    // 25% Spezial-Bloecke
+    seitenOffset: 2,
+    blockTypen: ['stone_bricks', 'quartz_block', 'smooth_stone', 'dark_oak_planks'],
+    spezialChance: 0.2
   },
   hard: {
-    sprungAnzahl: 25,
-    minDistanz: 2, maxDistanz: 4,
-    minHoehe: -2, maxHoehe: 3,
-    plattformGroesse: 1,   // 1x1 Plattformen!
-    blockTypen: ['stone', 'stone_bricks'],
-    spezialChance: 0.4     // 40% Spezial-Bloecke
+    sprungAnzahl: 22,
+    sprungTypen: [
+      { dx: 3, dy: 0, chance: 0.15 },
+      { dx: 4, dy: 0, chance: 0.20 },  // Maximal-Sprint-Jump
+      { dx: 3, dy: 1, chance: 0.20 },  // Sprint hoch
+      { dx: 4, dy: -1, chance: 0.15 }, // Sprint runter
+      { dx: 1, dy: 2, chance: 0.10 },  // 2 hoch (Leiter)
+      { dx: 2, dy: 1, chance: 0.10 },  // Kurz hoch
+      { dx: 4, dy: -2, chance: 0.10 }, // Weit runter
+    ],
+    plattformGroesse: 1,
+    seitenOffset: 3,
+    blockTypen: ['stone_bricks', 'deepslate_bricks', 'blackstone'],
+    spezialChance: 0.3
   }
 };
 
-const spezialBloecke = ['ice', 'packed_ice', 'slime_block', 'soul_sand'];
+const spezialBloecke = ['packed_ice', 'slime_block', 'soul_sand'];
 
 // ════════════════════════════════════════
 // 🐕 FOLLOW-MODUS SYSTEM
@@ -3616,6 +3639,25 @@ async function findeBlock(suchbegriff, username) {
 // ════════════════════════════════════════
 // 🏃 PARKOUR-GENERATOR FUNKTIONEN
 // ════════════════════════════════════════
+
+// Waehlt einen Sprung-Typ basierend auf Wahrscheinlichkeiten
+function waehleSprungTyp(sprungTypen) {
+  const zufall = Math.random();
+  let summe = 0;
+  for (const typ of sprungTypen) {
+    summe += typ.chance;
+    if (zufall <= summe) return typ;
+  }
+  return sprungTypen[0];
+}
+
+// Setzt einen Block und merkt ihn sich zum Aufraeumen
+async function setzeBlock(x, y, z, blockTyp) {
+  bot.chat(`/setblock ${x} ${y} ${z} ${blockTyp}`);
+  parkourModus.bloecke.push({ x, y, z });
+  await sleep(50);
+}
+
 async function generiereParkour(username, schwierigkeit) {
   if (maceModus.aktiv || swordModus.aktiv || crystalModus.aktiv || followModus.aktiv) {
     bot.chat('Stoppe erst den aktuellen Modus!');
@@ -3623,8 +3665,8 @@ async function generiereParkour(username, schwierigkeit) {
   }
   
   if (parkourModus.aktiv) {
-    bot.chat('Parkour laeuft schon! Sag "Freddi parkour stop" zum Stoppen.');
-    return;
+    stoppeParkour(true);
+    await sleep(1000);
   }
   
   const config = parkourConfig[schwierigkeit];
@@ -3640,59 +3682,37 @@ async function generiereParkour(username, schwierigkeit) {
   bot.chat(`🏃 Baue ${schwierigkeit.toUpperCase()} Parkour (${config.sprungAnzahl} Spruenge)...`);
   console.log(`🏃 Parkour-Generator: ${schwierigkeit} fuer ${username}`);
   
-  // Kreativ-Modus fuer schnelles Bauen
   bot.chat(`/gamemode creative ${bot.username}`);
   await sleep(1000);
   
-  const startPos = {
-    x: Math.floor(bot.entity.position.x),
-    y: Math.floor(bot.entity.position.y),
-    z: Math.floor(bot.entity.position.z)
-  };
+  const startX = Math.floor(bot.entity.position.x);
+  const startY = Math.floor(bot.entity.position.y);
+  const startZ = Math.floor(bot.entity.position.z);
   
-  // Start-Plattform (3x3 aus Quartz fuer guten Kontrast)
+  // === START-PLATTFORM (3x3 Quartz + Nummer "S") ===
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {
-      const bx = startPos.x + dx;
-      const bz = startPos.z + dz;
-      bot.chat(`/setblock ${bx} ${startPos.y - 1} ${bz} quartz_block`);
-      parkourModus.bloecke.push({ x: bx, y: startPos.y - 1, z: bz });
-      await sleep(50);
+      await setzeBlock(startX + dx, startY - 1, startZ + dz, 'quartz_block');
     }
   }
   
-  // Richtungen fuer Variation: 0=+x, 1=+z, 2=-x, 3=-z
-  let aktX = startPos.x;
-  let aktY = startPos.y - 1;
-  let aktZ = startPos.z;
-  let letzteRichtung = 1; // Starte nach vorne (+z)
+  // Parkour geht immer in +Z Richtung (geradeaus) mit leichten X-Offsets
+  let aktX = startX;
+  let aktY = startY - 1;
+  let aktZ = startZ;
   
   for (let i = 0; i < config.sprungAnzahl; i++) {
-    // Zufaellige Richtung (bevorzugt vorwaerts, manchmal seitlich)
-    let richtung;
-    const richtungsWuerfel = Math.random();
-    if (richtungsWuerfel < 0.5) {
-      richtung = letzteRichtung; // Gleiche Richtung weiter
-    } else if (richtungsWuerfel < 0.75) {
-      richtung = (letzteRichtung + 1) % 4; // 90 Grad rechts
-    } else {
-      richtung = (letzteRichtung + 3) % 4; // 90 Grad links
-    }
+    const sprung = waehleSprungTyp(config.sprungTypen);
     
-    // Distanz berechnen
-    const distanz = config.minDistanz + Math.floor(Math.random() * (config.maxDistanz - config.minDistanz + 1));
+    // Vorwaerts (Z) = Sprung-Distanz
+    aktZ += sprung.dx + 1; // +1 weil man ja auch auf dem Block steht
     
-    // Hoehen-Unterschied
-    const hoehe = config.minHoehe + Math.floor(Math.random() * (config.maxHoehe - config.minHoehe + 1));
+    // Hoehe aendern
+    aktY += sprung.dy;
     
-    // Position berechnen
-    switch (richtung) {
-      case 0: aktX += distanz + 1; break; // +X
-      case 1: aktZ += distanz + 1; break; // +Z
-      case 2: aktX -= distanz + 1; break; // -X
-      case 3: aktZ -= distanz + 1; break; // -Z
-    }
-    aktY += hoehe;
+    // Seitlich (X) = leichter Zufall
+    const seitenVerschiebung = Math.floor(Math.random() * (config.seitenOffset * 2 + 1)) - config.seitenOffset;
+    aktX += seitenVerschiebung;
     
     // Block-Typ waehlen
     let blockTyp;
@@ -3703,74 +3723,75 @@ async function generiereParkour(username, schwierigkeit) {
     }
     
     // Plattform bauen
-    const groesse = config.plattformGroesse;
-    for (let dx = 0; dx < groesse; dx++) {
-      for (let dz = 0; dz < groesse; dz++) {
-        const bx = aktX + dx;
-        const bz = aktZ + dz;
-        bot.chat(`/setblock ${bx} ${aktY} ${bz} ${blockTyp}`);
-        parkourModus.bloecke.push({ x: bx, y: aktY, z: bz });
-        await sleep(50);
+    const g = config.plattformGroesse;
+    const offset = g === 1 ? 0 : -1; // Bei 2x2: zentrieren
+    for (let dx = 0; dx < g; dx++) {
+      for (let dz = 0; dz < g; dz++) {
+        await setzeBlock(aktX + offset + dx, aktY, aktZ + dz, blockTyp);
       }
     }
     
-    // Bei Leiter-Spruengen (nur hard): Manchmal Leiter an der Seite
-    if (schwierigkeit === 'hard' && hoehe >= 2 && Math.random() < 0.3) {
-      for (let ly = 1; ly <= hoehe; ly++) {
-        bot.chat(`/setblock ${aktX - 1} ${aktY - hoehe + ly} ${aktZ} ladder[facing=east]`);
-        parkourModus.bloecke.push({ x: aktX - 1, y: aktY - hoehe + ly, z: aktZ });
-        await sleep(50);
+    // Bei grossen Hoehen-Spruengen (2+): Leiter-Saeulen bauen
+    if (sprung.dy >= 2) {
+      // Saeulenblock neben der Plattform + Leiter dran
+      for (let ly = 0; ly < sprung.dy + 1; ly++) {
+        await setzeBlock(aktX + offset - 1, aktY - sprung.dy + ly, aktZ, 'stone_bricks');
+        await setzeBlock(aktX + offset, aktY - sprung.dy + ly, aktZ, 'ladder[facing=east]');
       }
     }
     
-    letzteRichtung = richtung;
-    
-    // Alle 5 Spruenge kurze Pause
-    if (i % 5 === 4) {
-      await sleep(200);
+    // Luft ueber der Plattform freimachen (damit man landen kann)
+    for (let clearY = 1; clearY <= 3; clearY++) {
+      for (let dx = 0; dx < g; dx++) {
+        for (let dz = 0; dz < g; dz++) {
+          await setzeBlock(aktX + offset + dx, aktY + clearY, aktZ + dz, 'air');
+        }
+      }
     }
+    
+    // Sprung-Nummer als Glas-Scheibe markieren (alle 5 Spruenge)
+    if ((i + 1) % 5 === 0) {
+      await setzeBlock(aktX + offset, aktY + 1, aktZ - 1, 'oak_sign[rotation=8]');
+    }
+    
+    // Alle 5 Bloecke Pause gegen Server-Kick
+    if (i % 5 === 4) await sleep(300);
   }
   
-  // Ziel-Plattform: Gold-Block (3x3) + Beacon-Look
+  // === ZIEL-PLATTFORM (3x3 Gold + Fackel-Markierung) ===
+  aktZ += 2;
   for (let dx = -1; dx <= 1; dx++) {
-    for (let dz = -1; dz <= 1; dz++) {
-      bot.chat(`/setblock ${aktX + dx} ${aktY} ${aktZ + dz} gold_block`);
-      parkourModus.bloecke.push({ x: aktX + dx, y: aktY, z: aktZ + dz });
-      await sleep(50);
+    for (let dz = 0; dz <= 2; dz++) {
+      await setzeBlock(aktX + dx, aktY, aktZ + dz, 'gold_block');
     }
   }
-  // Leuchtfeuer ueber dem Ziel
-  bot.chat(`/setblock ${aktX} ${aktY + 1} ${aktZ} torch`);
-  parkourModus.bloecke.push({ x: aktX, y: aktY + 1, z: aktZ });
+  // Fackeln als Markierung
+  await setzeBlock(aktX - 1, aktY + 1, aktZ, 'torch');
+  await setzeBlock(aktX + 1, aktY + 1, aktZ, 'torch');
+  await setzeBlock(aktX, aktY + 1, aktZ + 2, 'torch');
   
-  parkourModus.zielPosition = { x: aktX, y: aktY + 1, z: aktZ };
+  parkourModus.zielPosition = { x: aktX, y: aktY + 1, z: aktZ + 1 };
   
   await sleep(500);
-  bot.chat(`🏃 Parkour fertig! ${config.sprungAnzahl} Spruenge, Schwierigkeit: ${schwierigkeit.toUpperCase()}`);
-  bot.chat('Stell dich auf die Start-Plattform (Quartz) und spring los!');
-  bot.chat('Ziel: Goldene Plattform am Ende!');
+  bot.chat(`🏃 Parkour fertig! ${config.sprungAnzahl} Spruenge`);
+  bot.chat('Start = Quartz, Ziel = Gold!');
   
-  // Timer starten
+  // Timer + Ziel-Check starten
   parkourModus.startZeit = Date.now();
   
-  // Ziel-Check: Alle 500ms pruefen ob Spieler am Ziel ist
   parkourModus.checkInterval = setInterval(() => {
     if (!parkourModus.aktiv) return;
-    
     try {
       const spieler = bot.players[parkourModus.spielerUsername]?.entity;
       if (!spieler) return;
       
       const sp = spieler.position;
       const ziel = parkourModus.zielPosition;
-      
-      // Spieler ist auf/neben der Gold-Plattform (3 Block Radius, gleiche Hoehe +/- 2)
       const dx = Math.abs(sp.x - ziel.x);
       const dy = Math.abs(sp.y - ziel.y);
       const dz = Math.abs(sp.z - ziel.z);
       
-      if (dx < 2 && dy < 3 && dz < 2) {
-        // ZIEL ERREICHT!
+      if (dx < 2.5 && dy < 3 && dz < 2.5) {
         const zeitMs = Date.now() - parkourModus.startZeit;
         const sekunden = (zeitMs / 1000).toFixed(1);
         const minuten = Math.floor(zeitMs / 60000);
@@ -3783,14 +3804,14 @@ async function generiereParkour(username, schwierigkeit) {
         }
         
         if (zeitMs < 30000) {
-          bot.chat('🔥 Unter 30 Sekunden! Du bist ein Parkour-Profi!');
+          bot.chat('🔥 Unter 30 Sekunden! Parkour-Profi!');
         } else if (zeitMs < 60000) {
           bot.chat('💪 Unter einer Minute! Richtig gut!');
         } else {
-          bot.chat('✅ Gut gemacht! Versuch es nochmal fuer eine bessere Zeit!');
+          bot.chat('✅ Gut gemacht! Nochmal fuer bessere Zeit?');
         }
         
-        stoppeParkour(false); // Stoppen aber Bloecke stehen lassen
+        stoppeParkour(false);
       }
     } catch(e) {}
   }, 500);
