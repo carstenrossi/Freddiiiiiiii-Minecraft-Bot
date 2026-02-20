@@ -3263,256 +3263,315 @@ function stoppeSwordModus(grund = 'Manuell gestoppt') {
 // ════════════════════════════════════════
 // 🐕 FOLLOW-MODUS: Freddi folgt dem Spieler
 // ════════════════════════════════════════
-async function starteFollowModus(username, bodyguard = false) {
-  // Check ob anderer Modus läuft
-  if (maceModus.aktiv || swordModus.aktiv) {
-    bot.chat('⚠️ Stoppe erst den aktuellen Modus!');
-    return;
-  }
-  
-  // Wenn Follow schon läuft, stoppe erst
-  if (followModus.aktiv) {
-    stoppeFollowModus();
-    await sleep(500);
-  }
-  
-  const spieler = bot.players[username]?.entity;
-  if (!spieler) {
-    bot.chat('Kann dich nicht finden!');
-    return;
-  }
-  
-  followModus.aktiv = true;
-  followModus.spieler = spieler;
-  followModus.spielerUsername = username;
-  followModus.bodyguard = bodyguard;
-  
-  const modus = bodyguard ? '🛡️ Bodyguard' : '🐕 Folge';
-  bot.chat(`${modus}-Modus gestartet!`);
-  console.log(`🐕 Follow-Modus gestartet für: ${username} (Bodyguard: ${bodyguard})`);
-  
-  // Pathfinder einrichten
-  const mcData = minecraftData(bot.version);
-  const move = new Movements(bot, mcData);
-  move.canDig = false;
-  move.allowParkour = true;
-  move.allowSprinting = true;
-  move.maxDropDown = 4;
-  move.canOpenDoors = true;
-  
-  bot.pathfinder.setMovements(move);
-  
-  // Follow-Loop: Alle 500ms Position prüfen
-  followModus.followInterval = setInterval(() => {
-    if (!followModus.aktiv) return;
+function starteFollowModus(username, bodyguard = false) {
+  try {
+    if (followModus.aktiv) {
+      bot.chat('🐕 Ich folge dir schon!');
+      return;
+    }
     
-    try {
-      const spielerEntity = bot.players[followModus.spielerUsername]?.entity;
-      if (!spielerEntity) return;
-      
-      // Update spieler-Referenz
-      followModus.spieler = spielerEntity;
-      
-      const distanz = bot.entity.position.distanceTo(spielerEntity.position);
-      
-      // Zu weit weg? → Teleportiere!
-      if (distanz > 30) {
-        const sp = spielerEntity.position;
-        bot.chat(`/tp ${bot.username} ${sp.x.toFixed(0)} ${sp.y.toFixed(0)} ${sp.z.toFixed(0)}`);
+    if (maceModus.aktiv || swordModus.aktiv || crystalModus.aktiv) {
+      bot.chat('⚠️ Stoppe erst den anderen Modus!');
+      return;
+    }
+    
+    const spieler = bot.players[username];
+    if (!spieler || !spieler.entity) {
+      bot.chat('❌ Ich kann dich nicht finden!');
+      return;
+    }
+    
+    followModus.aktiv = true;
+    followModus.spieler = spieler.entity;
+    followModus.spielerUsername = username;
+    followModus.bodyguard = bodyguard;
+    
+    if (bodyguard) {
+      bot.chat('🛡️ Bodyguard-Modus! Ich folge dir und beschütze dich!');
+    } else {
+      bot.chat('🐕 Ich folge dir jetzt!');
+    }
+    
+    console.log(`🐕 Follow-Modus gestartet für: ${username} (Bodyguard: ${bodyguard})`);
+    
+    const mcData = minecraftData(bot.version);
+    const move = new Movements(bot, mcData);
+    move.canDig = false;
+    move.allowParkour = true;
+    move.allowSprinting = true;
+    move.maxDropDown = 4;
+    move.canOpenDoors = true;
+    bot.pathfinder.setMovements(move);
+    
+    followModus.followInterval = setInterval(() => {
+      if (!followModus.aktiv) {
+        clearInterval(followModus.followInterval);
+        followModus.followInterval = null;
         return;
       }
       
-      // Mehr als 4 Blöcke weg? → Laufe hinterher (Pathfinder baut Brücken!)
-      if (distanz > 4) {
-        try {
-          bot.pathfinder.setGoal(new goals.GoalFollow(spielerEntity, 2), true);
-        } catch (e) {}
-      } else {
-        // Nah genug → Stoppe und schaue zum Spieler
-        try { bot.pathfinder.setGoal(null); } catch(e) {}
-        try { bot.lookAt(spielerEntity.position.offset(0, 1.6, 0), false); } catch(e) {}
-      }
-      
-
-      // Bodyguard-Modus: Angreifbare Mobs in der Nähe?
-      if (followModus.bodyguard) {
-        const feindlicheMobs = ['zombie', 'skeleton', 'creeper', 'spider', 'enderman', 
-          'witch', 'pillager', 'vindicator', 'ravager', 'phantom', 'drowned',
-          'husk', 'stray', 'blaze', 'ghast', 'wither_skeleton', 'piglin_brute'];
+      try {
+        const sp = bot.players[followModus.spielerUsername];
+        if (!sp || !sp.entity) return;
         
-        const entities = Object.values(bot.entities);
-        for (const entity of entities) {
-          if (!entity || !entity.isValid) continue;
-          if (!feindlicheMobs.includes(entity.name)) continue;
+        followModus.spieler = sp.entity;
+        const distanz = bot.entity.position.distanceTo(sp.entity.position);
+        
+        if (distanz > 30) {
+          bot.chat('/tp @s ' + followModus.spielerUsername);
+          return;
+        }
+        
+        if (distanz > 4) {
+          bot.pathfinder.setGoal(new goals.GoalFollow(sp.entity, 2), true);
+        } else {
+          bot.pathfinder.setGoal(null);
+          bot.lookAt(sp.entity.position.offset(0, 1.6, 0), false);
+        }
+        
+        if (followModus.bodyguard) {
+          const feindlich = ['zombie', 'skeleton', 'spider', 'creeper', 'enderman',
+                           'witch', 'pillager', 'vindicator', 'drowned', 'husk',
+                           'phantom', 'blaze', 'ghast', 'wither_skeleton', 'ravager',
+                           'stray', 'piglin_brute'];
+          const naheMobs = Object.values(bot.entities).filter(e => {
+            if (!e || !e.position || e === bot.entity) return false;
+            const name = (e.name || '').toLowerCase();
+            if (!feindlich.some(f => name.includes(f))) return false;
+            return e.position.distanceTo(bot.entity.position) < 8;
+          });
           
-          const mobDistanz = bot.entity.position.distanceTo(entity.position);
-          if (mobDistanz < 8) {
-            try {
-              if (mobDistanz < 3.5) {
-                bot.lookAt(entity.position.offset(0, entity.height * 0.5, 0), false);
-                bot.attack(entity);
-              } else {
-                bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
-              }
-            } catch (e) {}
-            break; // Nur ein Mob gleichzeitig
+          if (naheMobs.length > 0) {
+            const mob = naheMobs.reduce((n, c) => 
+              bot.entity.position.distanceTo(c.position) < bot.entity.position.distanceTo(n.position) ? c : n
+            );
+            const mobDist = bot.entity.position.distanceTo(mob.position);
+            if (mobDist < 3.5) {
+              bot.attack(mob);
+            } else {
+              bot.pathfinder.setGoal(new goals.GoalFollow(mob, 1), true);
+            }
           }
         }
+        
+      } catch (err) {
+        // Stille Fehler
       }
       
-    } catch (err) {
-      // Stille Fehler
-    }
-  }, 500);
+    }, 500);
+    
+  } catch (err) {
+    console.error('❌ Follow-Modus Fehler:', err.message);
+    bot.chat('❌ Fehler beim Follow-Modus!');
+    followModus.aktiv = false;
+  }
 }
 
 function stoppeFollowModus() {
-  if (!followModus.aktiv) return;
-  
-  console.log('🛑 Follow-Modus gestoppt');
+  console.log('🛑 Stoppe Follow-Modus');
   
   if (followModus.followInterval) {
     clearInterval(followModus.followInterval);
     followModus.followInterval = null;
   }
-  try { bot.pathfinder.setGoal(null); } catch(e) {}
-  try {
-    bot.setControlState('forward', false);
-    bot.setControlState('sprint', false);
-    bot.setControlState('jump', false);
-  } catch(e) {}
-  
-  bot.chat('🛑 Follow-Modus gestoppt!');
   
   followModus.aktiv = false;
   followModus.spieler = null;
   followModus.spielerUsername = null;
   followModus.bodyguard = false;
+  
+  try {
+    bot.pathfinder.setGoal(null);
+    bot.setControlState('forward', false);
+    bot.setControlState('sprint', false);
+    bot.setControlState('jump', false);
+  } catch (e) {}
+  
+  bot.chat('🐕 Ich bleibe hier stehen!');
 }
 
 // ════════════════════════════════════════
 // 💎 CRYSTAL-MODUS FUNKTIONEN
 // ════════════════════════════════════════
 async function starteCrystalModus(username) {
-  if (maceModus.aktiv || swordModus.aktiv || followModus.aktiv) {
-    bot.chat('⚠️ Stoppe erst den aktuellen Modus!');
-    return;
-  }
-  
-  if (crystalModus.aktiv) {
-    bot.chat('💎 Crystal-Modus läuft schon!');
-    return;
-  }
-  
-  const spieler = bot.players[username]?.entity;
-  if (!spieler) {
-    bot.chat('Kann dich nicht finden!');
-    return;
-  }
-  
-  crystalModus.aktiv = true;
-  crystalModus.spieler = spieler;
-  crystalModus.spielerUsername = username;
-  crystalModus.startZeit = Date.now();
-  
-  bot.chat('💎 Crystal-Modus startet...');
-  console.log(`💎 Crystal-Modus gestartet für: ${username}`);
-  
-  // Schwierigkeit auf Hard setzen
-  bot.chat('/difficulty hard');
-  await sleep(800);
-  
-  // === SPIELER AUSRÜSTUNG ===
-  bot.chat(`/give ${username} minecraft:obsidian 64`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:end_crystal 64`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:respawn_anchor 64`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:glowstone 64`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:netherite_sword[minecraft:enchantments={levels:{"minecraft:knockback":1}}] 1`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:netherite_helmet[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:netherite_chestplate[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:netherite_leggings[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
-  await sleep(400);
-  bot.chat(`/give ${username} minecraft:netherite_boots[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
-  await sleep(400);
-  
-  // Spieler unsterblich + Fire Resistance
-  bot.chat(`/effect give ${username} minecraft:resistance 999999 255`);
-  await sleep(300);
-  bot.chat(`/effect give ${username} minecraft:regeneration 999999 255`);
-  await sleep(300);
-  bot.chat(`/effect give ${username} minecraft:health_boost 999999 10`);
-  await sleep(300);
-  bot.chat(`/effect give ${username} minecraft:fire_resistance 999999 1`);
-  await sleep(500);
-  
-  // === FREDDI AUSRÜSTUNG ===
-  // Helm, Brustplatte, Schuhe: Unbreaking 3 + Protection 4
-  bot.chat(`/give ${bot.username} minecraft:netherite_helmet[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
-  await sleep(400);
-  bot.chat(`/give ${bot.username} minecraft:netherite_chestplate[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
-  await sleep(400);
-  // Hose: Unbreaking 3 + Blast Protection 4
-  bot.chat(`/give ${bot.username} minecraft:netherite_leggings[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:blast_protection":4}}] 1`);
-  await sleep(400);
-  bot.chat(`/give ${bot.username} minecraft:netherite_boots[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
-  await sleep(400);
-  // Totems
-  bot.chat(`/give ${bot.username} minecraft:totem_of_undying 64`);
-  await sleep(400);
-  
-  // Freddi Fire Resistance
-  bot.chat(`/effect give ${bot.username} minecraft:fire_resistance 999999 1`);
-  await sleep(500);
-  
-  // Rüstung anziehen
   try {
+    if (crystalModus.aktiv) {
+      bot.chat('⚠️ Crystal-Modus läuft bereits!');
+      return 'Crystal bereits aktiv';
+    }
+    
+    if (maceModus.aktiv || swordModus.aktiv || followModus.aktiv) {
+      bot.chat('⚠️ Stoppe erst den anderen Modus!');
+      return 'Anderer Modus aktiv';
+    }
+    
+    const spieler = bot.players[username];
+    if (!spieler || !spieler.entity) {
+      bot.chat('❌ Ich kann dich nicht finden!');
+      return 'Spieler nicht gefunden';
+    }
+    
+    console.log(`💎 Starte Crystal-Modus für: ${username}`);
+    bot.chat('💎 CRYSTAL-MODUS AKTIVIERT!');
+    
+    crystalModus.spieler = spieler.entity;
+    crystalModus.spielerUsername = username;
+    crystalModus.startZeit = Date.now();
+    crystalModus.aktiv = true;
+    
+    // Alte Effekte und Inventare leeren
+    console.log('🧹 Lösche alte Effekte und Inventare');
+    bot.chat(`/effect clear ${username}`);
+    await sleep(800);
+    bot.chat(`/effect clear ${bot.username}`);
+    await sleep(800);
+    bot.chat(`/clear ${username}`);
+    await sleep(800);
+    bot.chat(`/clear ${bot.username}`);
     await sleep(1000);
-    const mcData = minecraftData(bot.version);
-    const helmet = bot.inventory.items().find(i => i.name.includes('helmet'));
-    if (helmet) await bot.equip(helmet, 'head');
-    await sleep(300);
-    const chestplate = bot.inventory.items().find(i => i.name.includes('chestplate'));
-    if (chestplate) await bot.equip(chestplate, 'torso');
-    await sleep(300);
-    const leggings = bot.inventory.items().find(i => i.name.includes('leggings'));
-    if (leggings) await bot.equip(leggings, 'legs');
-    await sleep(300);
-    const boots = bot.inventory.items().find(i => i.name.includes('boots'));
-    if (boots) await bot.equip(boots, 'feet');
-    await sleep(300);
-    const totem = bot.inventory.items().find(i => i.name === 'totem_of_undying');
-    if (totem) await bot.equip(totem, 'off-hand');
-  } catch(e) {
-    console.log('⚠️ Equip-Fehler:', e.message);
+    
+    // Schwierigkeit auf Hard setzen
+    bot.chat('/difficulty hard');
+    await sleep(800);
+    
+    // === SPIELER AUSRÜSTUNG ===
+    console.log('💎 Gebe Spieler Crystal-Equipment');
+    bot.chat(`/give ${username} minecraft:obsidian 64`);
+    await sleep(800);
+    bot.chat(`/give ${username} minecraft:end_crystal 64`);
+    await sleep(800);
+    bot.chat(`/give ${username} minecraft:respawn_anchor 64`);
+    await sleep(800);
+    bot.chat(`/give ${username} minecraft:glowstone 64`);
+    await sleep(800);
+    bot.chat(`/give ${username} minecraft:netherite_sword[minecraft:enchantments={levels:{"minecraft:knockback":1}}] 1`);
+    await sleep(1000);
+    bot.chat(`/give ${username} minecraft:netherite_helmet[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+    await sleep(800);
+    bot.chat(`/give ${username} minecraft:netherite_chestplate[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+    await sleep(800);
+    bot.chat(`/give ${username} minecraft:netherite_leggings[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+    await sleep(800);
+    bot.chat(`/give ${username} minecraft:netherite_boots[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+    await sleep(1000);
+    
+    // Spieler unsterblich + Fire Resistance
+    bot.chat(`/effect give ${username} minecraft:resistance 999999 255`);
+    await sleep(800);
+    bot.chat(`/effect give ${username} minecraft:regeneration 999999 255`);
+    await sleep(800);
+    bot.chat(`/effect give ${username} minecraft:health_boost 999999 10`);
+    await sleep(800);
+    bot.chat(`/effect give ${username} minecraft:fire_resistance 999999 1`);
+    await sleep(1000);
+    
+    // === FREDDI AUSRÜSTUNG ===
+    console.log('🛡️ Gebe Freddi Crystal-Equipment');
+    bot.chat(`/give ${bot.username} minecraft:netherite_helmet[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
+    await sleep(800);
+    bot.chat(`/give ${bot.username} minecraft:netherite_chestplate[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
+    await sleep(800);
+    bot.chat(`/give ${bot.username} minecraft:netherite_leggings[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:blast_protection":4}}] 1`);
+    await sleep(800);
+    bot.chat(`/give ${bot.username} minecraft:netherite_boots[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
+    await sleep(800);
+    bot.chat(`/give ${bot.username} minecraft:totem_of_undying 64`);
+    await sleep(1000);
+    
+    // Freddi Fire Resistance
+    bot.chat(`/effect give ${bot.username} minecraft:fire_resistance 999999 1`);
+    await sleep(1000);
+    
+    // Rüstung anziehen
+    console.log('👔 Equippe Freddis Rüstung');
+    await sleep(1000);
+    try {
+      const helmet = bot.inventory.items().find(i => i.name === 'netherite_helmet');
+      if (helmet) { await bot.equip(helmet, 'head'); await sleep(500); }
+      
+      const chestplate = bot.inventory.items().find(i => i.name === 'netherite_chestplate');
+      if (chestplate) { await bot.equip(chestplate, 'torso'); await sleep(500); }
+      
+      const leggings = bot.inventory.items().find(i => i.name === 'netherite_leggings');
+      if (leggings) { await bot.equip(leggings, 'legs'); await sleep(500); }
+      
+      const boots = bot.inventory.items().find(i => i.name === 'netherite_boots');
+      if (boots) { await bot.equip(boots, 'feet'); await sleep(500); }
+      
+      const totem = bot.inventory.items().find(i => i.name === 'totem_of_undying');
+      if (totem) { await bot.equip(totem, 'off-hand'); await sleep(500); }
+      
+      console.log('✅ Rüstung + Totem equippt');
+    } catch (equipErr) {
+      console.error('⚠️ Fehler beim Equippen:', equipErr.message);
+    }
+    
+    // Totem-Refill Loop starten
+    console.log('💖 Starte Totem-Refill Loop');
+    await sleep(1000);
+    starteCrystalTotemLoop();
+    
+    bot.chat('💎 Crystal-Modus bereit! Viel Spaß beim Üben!');
+    console.log('✅ Crystal-Modus erfolgreich gestartet');
+    return 'Crystal-Modus gestartet';
+    
+  } catch (err) {
+    console.error('❌ Fehler beim Starten des Crystal-Modus:', err);
+    console.error('Stack:', err.stack);
+    bot.chat('❌ Fehler beim Starten!');
+    
+    crystalModus.aktiv = false;
+    crystalModus.spieler = null;
+    crystalModus.spielerUsername = null;
+    
+    return 'Fehler';
   }
-  
-  // Totem-Refill Loop starten
-  starteCrystalTotemLoop();
-  
-  bot.chat('💎 Crystal-Modus bereit! Viel Spaß beim Üben!');
 }
 
 function starteCrystalTotemLoop() {
+  console.log('🔁 Starte Crystal Totem-Refill Loop (5x pro Sekunde)');
+  
+  let totemCheckCount = 0;
+  
   crystalModus.totemInterval = setInterval(() => {
-    if (!crystalModus.aktiv) return;
+    if (!crystalModus.aktiv) {
+      clearInterval(crystalModus.totemInterval);
+      crystalModus.totemInterval = null;
+      return;
+    }
+    
+    totemCheckCount++;
+    
     try {
       const offhand = bot.inventory.slots[45];
-      if (!offhand || offhand.name !== 'totem_of_undying') {
-        const totem = bot.inventory.items().find(i => i.name === 'totem_of_undying');
-        if (totem) {
+      const hatTotemInOffhand = offhand && offhand.name === 'totem_of_undying';
+      
+      const totemsImInventar = bot.inventory.items().filter(i => i.name === 'totem_of_undying');
+      const totemAnzahl = totemsImInventar.reduce((sum, item) => sum + item.count, 0);
+      
+      if (!hatTotemInOffhand) {
+        console.log('⚠️ Kein Totem in der Off-Hand! Versuche neues zu equippen...');
+        
+        if (totemAnzahl > 0) {
+          const totem = totemsImInventar[0];
           bot.equip(totem, 'off-hand');
+          console.log(`✅ Totem equippt (noch ${totemAnzahl} übrig)`);
         } else {
+          console.log('📦 Keine Totems mehr! Gebe neue...');
           bot.chat(`/give ${bot.username} minecraft:totem_of_undying 64`);
         }
       }
-    } catch(e) {}
+      
+      // Alle 30 Sekunden (150 Ticks): Totem-Vorrat auffüllen
+      if (totemCheckCount % 150 === 0 && totemAnzahl < 32) {
+        console.log(`📦 Totem-Refill: Nur noch ${totemAnzahl} Totems, fülle auf`);
+        bot.chat(`/give ${bot.username} minecraft:totem_of_undying 64`);
+      }
+      
+    } catch (err) {
+      // Stille Fehler
+    }
+    
   }, 200);
 }
 
@@ -3525,13 +3584,24 @@ function stoppeCrystalModus() {
   }
   
   const username = crystalModus.spielerUsername;
+  const dauer = Math.floor((Date.now() - crystalModus.startZeit) / 1000);
+  const sekunden = dauer % 60;
+  const minuten = Math.floor(dauer / 60);
+  
+  console.log(`📊 Crystal-Modus lief ${dauer} Sekunden`);
   
   crystalModus.aktiv = false;
   crystalModus.spieler = null;
   crystalModus.spielerUsername = null;
   
   setTimeout(() => {
-    try { bot.chat('💎 Crystal-Modus beendet!'); } catch(e) {}
+    try {
+      if (minuten > 0) {
+        bot.chat(`💎 Crystal-Modus beendet! (${minuten}m ${sekunden}s)`);
+      } else {
+        bot.chat(`💎 Crystal-Modus beendet! (${sekunden}s)`);
+      }
+    } catch(e) {}
   }, 500);
   
   setTimeout(() => {
@@ -3553,86 +3623,134 @@ function stoppeCrystalModus() {
   setTimeout(() => {
     try { bot.chat('/difficulty peaceful'); } catch(e) {}
   }, 8000);
+  
+  return 'Crystal-Modus gestoppt';
 }
 
 // ════════════════════════════════════════
 // 🔍 BLOCK FINDER
 // ════════════════════════════════════════
 const blockSuchListe = {
-  'diamant': 'diamond_ore', 'diamanten': 'diamond_ore', 'diamond': 'diamond_ore',
-  'eisen': 'iron_ore', 'iron': 'iron_ore',
-  'gold': 'gold_ore',
-  'kohle': 'coal_ore', 'coal': 'coal_ore',
-  'redstone': 'redstone_ore',
-  'lapis': 'lapis_ore',
-  'smaragd': 'emerald_ore', 'emerald': 'emerald_ore',
-  'kupfer': 'copper_ore', 'copper': 'copper_ore',
-  'netherite': 'ancient_debris', 'ancient debris': 'ancient_debris',
-  'wasser': 'water', 'water': 'water',
-  'lava': 'lava',
-  'obsidian': 'obsidian',
-  'spawner': 'spawner', 'mob spawner': 'spawner',
-  'chest': 'chest', 'kiste': 'chest', 'truhe': 'chest',
+  'diamant':    { namen: ['diamond_ore', 'deepslate_diamond_ore'], emoji: '💎', farbe: 'hellblau' },
+  'diamanten':  { namen: ['diamond_ore', 'deepslate_diamond_ore'], emoji: '💎', farbe: 'hellblau' },
+  'diamond':    { namen: ['diamond_ore', 'deepslate_diamond_ore'], emoji: '💎', farbe: 'hellblau' },
+  'eisen':      { namen: ['iron_ore', 'deepslate_iron_ore'], emoji: '⛏️', farbe: 'beige' },
+  'iron':       { namen: ['iron_ore', 'deepslate_iron_ore'], emoji: '⛏️', farbe: 'beige' },
+  'gold':       { namen: ['gold_ore', 'deepslate_gold_ore'], emoji: '🥇', farbe: 'gelb' },
+  'kohle':      { namen: ['coal_ore', 'deepslate_coal_ore'], emoji: '⬛', farbe: 'schwarz' },
+  'coal':       { namen: ['coal_ore', 'deepslate_coal_ore'], emoji: '⬛', farbe: 'schwarz' },
+  'redstone':   { namen: ['redstone_ore', 'deepslate_redstone_ore'], emoji: '🔴', farbe: 'rot' },
+  'lapis':      { namen: ['lapis_ore', 'deepslate_lapis_ore'], emoji: '🔵', farbe: 'blau' },
+  'smaragd':    { namen: ['emerald_ore', 'deepslate_emerald_ore'], emoji: '🟢', farbe: 'grün' },
+  'emerald':    { namen: ['emerald_ore', 'deepslate_emerald_ore'], emoji: '🟢', farbe: 'grün' },
+  'kupfer':     { namen: ['copper_ore', 'deepslate_copper_ore'], emoji: '🟤', farbe: 'orange' },
+  'copper':     { namen: ['copper_ore', 'deepslate_copper_ore'], emoji: '🟤', farbe: 'orange' },
+  'netherite':  { namen: ['ancient_debris'], emoji: '🟫', farbe: 'braun' },
+  'ancient debris': { namen: ['ancient_debris'], emoji: '🟫', farbe: 'braun' },
+  'quarz':      { namen: ['nether_quartz_ore'], emoji: '⬜', farbe: 'weiß' },
+  'quartz':     { namen: ['nether_quartz_ore'], emoji: '⬜', farbe: 'weiß' },
+  'wasser':     { namen: ['water'], emoji: '💧', farbe: 'blau' },
+  'water':      { namen: ['water'], emoji: '💧', farbe: 'blau' },
+  'lava':       { namen: ['lava'], emoji: '🔥', farbe: 'orange' },
+  'obsidian':   { namen: ['obsidian'], emoji: '🟪', farbe: 'lila' },
+  'spawner':    { namen: ['spawner'], emoji: '💀', farbe: 'dunkel' },
+  'mob spawner': { namen: ['spawner'], emoji: '💀', farbe: 'dunkel' },
+  'chest':      { namen: ['chest'], emoji: '📦', farbe: 'braun' },
+  'kiste':      { namen: ['chest'], emoji: '📦', farbe: 'braun' },
+  'truhe':      { namen: ['chest'], emoji: '📦', farbe: 'braun' },
 };
 
 async function findeBlock(suchbegriff, username) {
-  const blockName = blockSuchListe[suchbegriff.toLowerCase()] || suchbegriff.toLowerCase();
-  
-  bot.chat(`🔍 Suche ${suchbegriff}...`);
-  console.log(`🔍 Block-Suche: "${suchbegriff}" → "${blockName}"`);
-  
   try {
-    const bloecke = bot.findBlocks({
-      matching: (block) => {
-        if (!block) return false;
-        return block.name === blockName || block.name === `deepslate_${blockName}` || 
-               block.name.includes(blockName);
-      },
-      maxDistance: 128,
-      count: 100
+    const pos = bot.entity.position;
+    
+    const suchInfo = blockSuchListe[suchbegriff.toLowerCase()];
+    
+    if (!suchInfo) {
+      bot.chat(`🔍 Suche nach "${suchbegriff}"...`);
+      
+      const gefunden = bot.findBlocks({
+        matching: (block) => block && block.name.toLowerCase().includes(suchbegriff.toLowerCase()),
+        maxDistance: 64,
+        count: 100
+      });
+      
+      if (gefunden.length === 0) {
+        bot.chat(`❌ Nichts gefunden! Ich kenne: diamanten, eisen, gold, kohle, redstone, lapis, smaragd, kupfer, netherite, quarz`);
+        return 'Nicht gefunden';
+      }
+      
+      gefunden.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
+      const naechster = gefunden[0];
+      const distanz = Math.floor(pos.distanceTo(naechster));
+      
+      bot.chat(`🔍 ${gefunden.length}x "${suchbegriff}" gefunden!`);
+      await sleep(500);
+      bot.chat(`📍 Nächster: ${naechster.x}, ${naechster.y}, ${naechster.z} (${distanz} Blöcke weg)`);
+      return 'Gefunden';
+    }
+    
+    bot.chat(`${suchInfo.emoji} Suche nach ${suchbegriff}...`);
+    
+    const gefunden = bot.findBlocks({
+      matching: (block) => block && suchInfo.namen.includes(block.name),
+      maxDistance: 64,
+      count: 200
     });
     
-    if (bloecke.length === 0) {
-      bot.chat(`❌ Kein ${suchbegriff} in 128 Blöcken Reichweite gefunden!`);
-      return;
+    if (gefunden.length === 0) {
+      bot.chat(`❌ Kein ${suchbegriff} in 64 Blöcken Reichweite gefunden!`);
+      await sleep(500);
+      
+      if (suchbegriff.includes('diamant') || suchbegriff === 'diamond') {
+        bot.chat('💡 Tipp: Diamanten spawnen bei Y = -64 bis 16 (am meisten bei Y = -59)');
+        await sleep(500);
+        bot.chat(`📍 Du bist gerade bei Y = ${Math.floor(pos.y)}`);
+      } else if (suchbegriff === 'netherite' || suchbegriff === 'ancient debris') {
+        bot.chat('💡 Tipp: Ancient Debris gibt es nur im Nether bei Y = 8 bis 22');
+      } else if (suchbegriff === 'smaragd' || suchbegriff === 'emerald') {
+        bot.chat('💡 Tipp: Smaragde gibt es nur in Gebirgs-Biomen!');
+      }
+      
+      return 'Nicht gefunden';
     }
     
-    // Sortiere nach Entfernung
-    const botPos = bot.entity.position;
-    const sortiert = bloecke
-      .map(pos => ({
-        pos,
-        block: bot.blockAt(pos),
-        distanz: botPos.distanceTo(pos)
-      }))
-      .sort((a, b) => a.distanz - b.distanz);
+    gefunden.sort((a, b) => pos.distanceTo(a) - pos.distanceTo(b));
     
-    bot.chat(`✅ ${bloecke.length}x ${suchbegriff} gefunden!`);
+    const naechster = gefunden[0];
+    const distanz = Math.floor(pos.distanceTo(naechster));
     
-    // Zeige die 5 nächsten
-    const maxAnzeige = Math.min(5, sortiert.length);
-    for (let i = 0; i < maxAnzeige; i++) {
-      const e = sortiert[i];
-      const name = e.block ? e.block.name : blockName;
-      bot.chat(`  ${i + 1}. ${name} bei (${e.pos.x}, ${e.pos.y}, ${e.pos.z}) - ${e.distanz.toFixed(0)}m`);
-      await sleep(100);
+    bot.chat(`${suchInfo.emoji} ${gefunden.length}x ${suchbegriff} gefunden!`);
+    await sleep(600);
+    bot.chat(`📍 Nächster: ${naechster.x}, ${naechster.y}, ${naechster.z} (${distanz} Blöcke weg)`);
+    
+    if (gefunden.length > 1) {
+      await sleep(600);
+      const top3 = gefunden.slice(0, Math.min(3, gefunden.length));
+      for (let i = 0; i < top3.length; i++) {
+        const block = top3[i];
+        const d = Math.floor(pos.distanceTo(block));
+        bot.chat(`  ${i + 1}. X:${block.x} Y:${block.y} Z:${block.z} (${d} Blöcke)`);
+        await sleep(400);
+      }
     }
     
-    // Y-Level Tipps für Erze
-    if (blockName.includes('diamond')) {
-      bot.chat('💡 Tipp: Diamanten findet man am besten auf Y:-59 bis Y:-64!');
-    } else if (blockName.includes('iron')) {
-      bot.chat('💡 Tipp: Eisen ist am häufigsten auf Y:16 und Y:232!');
-    } else if (blockName === 'ancient_debris') {
-      bot.chat('💡 Tipp: Netherite findet man im Nether auf Y:8-22!');
-    }
+    await sleep(500);
+    bot.chat(`🏃 Soll ich hinlaufen? Sag "Freddi, geh da hin"!`);
     
-    // Speichere letztes Suchergebnis
-    bot.letztesSuchErgebnis = sortiert[0];
+    bot.letztesSuchErgebnis = {
+      position: naechster,
+      name: suchbegriff,
+      emoji: suchInfo.emoji,
+      zeitpunkt: Date.now()
+    };
+    
+    return 'Gefunden';
     
   } catch (err) {
     console.error('❌ Block-Finder Fehler:', err.message);
     bot.chat(`❌ Fehler: ${err.message}`);
+    return 'Fehler';
   }
 }
 
@@ -3652,10 +3770,21 @@ function waehleSprungTyp(sprungTypen) {
 }
 
 // Setzt einen Block und merkt ihn sich zum Aufraeumen
-async function setzeBlock(x, y, z, blockTyp) {
+function setzeBlock(x, y, z, blockTyp) {
   bot.chat(`/setblock ${x} ${y} ${z} ${blockTyp}`);
   parkourModus.bloecke.push({ x, y, z });
-  await sleep(50);
+}
+
+// Füllt einen Bereich mit /fill (viel schneller als einzelne Blöcke)
+function fuelleBereich(x1, y1, z1, x2, y2, z2, blockTyp) {
+  bot.chat(`/fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${blockTyp}`);
+  for (let x = Math.min(x1,x2); x <= Math.max(x1,x2); x++) {
+    for (let y = Math.min(y1,y2); y <= Math.max(y1,y2); y++) {
+      for (let z = Math.min(z1,z2); z <= Math.max(z1,z2); z++) {
+        parkourModus.bloecke.push({ x, y, z });
+      }
+    }
+  }
 }
 
 async function generiereParkour(username, schwierigkeit) {
@@ -3682,6 +3811,36 @@ async function generiereParkour(username, schwierigkeit) {
   bot.chat(`🏃 Baue ${schwierigkeit.toUpperCase()} Parkour (${config.sprungAnzahl} Spruenge)...`);
   console.log(`🏃 Parkour-Generator: ${schwierigkeit} fuer ${username}`);
   
+  // Blickrichtung des Spielers bestimmen
+  const spielerEntity = bot.players[username]?.entity;
+  let richtungName = 'Süden';
+  let vorwaertsX = 0, vorwaertsZ = 1;   // Standard: +Z (Süden)
+  let seitlichX = 1, seitlichZ = 0;     // Seitlich dazu
+  
+  if (spielerEntity) {
+    const yaw = spielerEntity.yaw;
+    // Yaw in Grad umrechnen und auf 0-360 normalisieren
+    let grad = ((yaw * 180 / Math.PI) % 360 + 360) % 360;
+    
+    if (grad >= 315 || grad < 45) {
+      // Norden (-Z)
+      vorwaertsX = 0; vorwaertsZ = -1; seitlichX = -1; seitlichZ = 0;
+      richtungName = 'Norden';
+    } else if (grad >= 45 && grad < 135) {
+      // Osten (+X)
+      vorwaertsX = 1; vorwaertsZ = 0; seitlichX = 0; seitlichZ = -1;
+      richtungName = 'Osten';
+    } else if (grad >= 135 && grad < 225) {
+      // Süden (+Z)
+      vorwaertsX = 0; vorwaertsZ = 1; seitlichX = 1; seitlichZ = 0;
+      richtungName = 'Süden';
+    } else {
+      // Westen (-X)
+      vorwaertsX = -1; vorwaertsZ = 0; seitlichX = 0; seitlichZ = 1;
+      richtungName = 'Westen';
+    }
+  }
+  
   bot.chat(`/gamemode creative ${bot.username}`);
   await sleep(1000);
   
@@ -3689,30 +3848,44 @@ async function generiereParkour(username, schwierigkeit) {
   const startY = Math.floor(bot.entity.position.y);
   const startZ = Math.floor(bot.entity.position.z);
   
-  // === START-PLATTFORM (3x3 Quartz + Nummer "S") ===
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dz = -1; dz <= 1; dz++) {
-      await setzeBlock(startX + dx, startY - 1, startZ + dz, 'quartz_block');
-    }
-  }
+  // === START-PLATTFORM (3x3 Quartz) ===
+  fuelleBereich(startX - 1, startY - 1, startZ - 1, startX + 1, startY - 1, startZ + 1, 'quartz_block');
+  await sleep(200);
   
-  // Parkour geht immer in +Z Richtung (geradeaus) mit leichten X-Offsets
+  bot.chat(`🧭 Parkour geht Richtung ${richtungName}!`);
+  
+  // Parkour geht in die Blickrichtung des Spielers
   let aktX = startX;
   let aktY = startY - 1;
   let aktZ = startZ;
   
+  let letzterDy = 0;
+  
   for (let i = 0; i < config.sprungAnzahl; i++) {
-    const sprung = waehleSprungTyp(config.sprungTypen);
+    let sprung = waehleSprungTyp(config.sprungTypen);
     
-    // Vorwaerts (Z) = Sprung-Distanz
-    aktZ += sprung.dx + 1; // +1 weil man ja auch auf dem Block steht
+    // Verhindere 3x hintereinander nach oben (wird zu einer Wand)
+    if (sprung.dy > 0 && letzterDy > 0) {
+      // Zweites Mal nach oben: mach es flach oder runter
+      sprung = { dx: sprung.dx, dy: 0, chance: sprung.chance };
+    }
+    letzterDy = sprung.dy;
+    
+    // Vorwaerts-Distanz: Bei Hoch-Spruengen MEHR Abstand damit nix blockiert
+    let dist = sprung.dx + 1;
+    if (sprung.dy > 0) {
+      dist = Math.max(dist, sprung.dx + 2);
+    }
+    
+    // Seitlich = leichter Zufall
+    const seitenVerschiebung = Math.floor(Math.random() * (config.seitenOffset * 2 + 1)) - config.seitenOffset;
+    
+    // Bewegung in Blickrichtung umrechnen
+    aktX += vorwaertsX * dist + seitlichX * seitenVerschiebung;
+    aktZ += vorwaertsZ * dist + seitlichZ * seitenVerschiebung;
     
     // Hoehe aendern
     aktY += sprung.dy;
-    
-    // Seitlich (X) = leichter Zufall
-    const seitenVerschiebung = Math.floor(Math.random() * (config.seitenOffset * 2 + 1)) - config.seitenOffset;
-    aktX += seitenVerschiebung;
     
     // Block-Typ waehlen
     let blockTyp;
@@ -3722,55 +3895,40 @@ async function generiereParkour(username, schwierigkeit) {
       blockTyp = config.blockTypen[Math.floor(Math.random() * config.blockTypen.length)];
     }
     
-    // Plattform bauen
+    // Plattform bauen (mit /fill)
     const g = config.plattformGroesse;
-    const offset = g === 1 ? 0 : -1; // Bei 2x2: zentrieren
-    for (let dx = 0; dx < g; dx++) {
-      for (let dz = 0; dz < g; dz++) {
-        await setzeBlock(aktX + offset + dx, aktY, aktZ + dz, blockTyp);
-      }
-    }
+    const halfG = Math.floor(g / 2);
+    fuelleBereich(aktX - halfG, aktY, aktZ - halfG, aktX - halfG + g - 1, aktY, aktZ - halfG + g - 1, blockTyp);
+    await sleep(100);
+    
+    // Luft freimachen: 5 Bloecke hoch, 3 Bloecke um die Plattform herum
+    fuelleBereich(aktX - halfG - 2, aktY + 1, aktZ - halfG - 2, aktX - halfG + g + 1, aktY + 5, aktZ - halfG + g + 1, 'air');
+    await sleep(100);
     
     // Bei grossen Hoehen-Spruengen (2+): Leiter-Saeulen bauen
     if (sprung.dy >= 2) {
-      // Saeulenblock neben der Plattform + Leiter dran
       for (let ly = 0; ly < sprung.dy + 1; ly++) {
-        await setzeBlock(aktX + offset - 1, aktY - sprung.dy + ly, aktZ, 'stone_bricks');
-        await setzeBlock(aktX + offset, aktY - sprung.dy + ly, aktZ, 'ladder[facing=east]');
+        setzeBlock(aktX - halfG - 1, aktY - sprung.dy + ly, aktZ, 'stone_bricks');
+        setzeBlock(aktX - halfG, aktY - sprung.dy + ly, aktZ, 'ladder[facing=east]');
       }
+      await sleep(100);
     }
     
-    // Luft ueber der Plattform freimachen (damit man landen kann)
-    for (let clearY = 1; clearY <= 3; clearY++) {
-      for (let dx = 0; dx < g; dx++) {
-        for (let dz = 0; dz < g; dz++) {
-          await setzeBlock(aktX + offset + dx, aktY + clearY, aktZ + dz, 'air');
-        }
-      }
-    }
-    
-    // Sprung-Nummer als Glas-Scheibe markieren (alle 5 Spruenge)
-    if ((i + 1) % 5 === 0) {
-      await setzeBlock(aktX + offset, aktY + 1, aktZ - 1, 'oak_sign[rotation=8]');
-    }
-    
-    // Alle 5 Bloecke Pause gegen Server-Kick
-    if (i % 5 === 4) await sleep(300);
+    // Alle 3 Spruenge kurze Pause gegen Server-Kick
+    if (i % 3 === 2) await sleep(200);
   }
   
   // === ZIEL-PLATTFORM (3x3 Gold + Fackel-Markierung) ===
-  aktZ += 2;
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dz = 0; dz <= 2; dz++) {
-      await setzeBlock(aktX + dx, aktY, aktZ + dz, 'gold_block');
-    }
-  }
-  // Fackeln als Markierung
-  await setzeBlock(aktX - 1, aktY + 1, aktZ, 'torch');
-  await setzeBlock(aktX + 1, aktY + 1, aktZ, 'torch');
-  await setzeBlock(aktX, aktY + 1, aktZ + 2, 'torch');
+  aktX += vorwaertsX * 2;
+  aktZ += vorwaertsZ * 2;
+  fuelleBereich(aktX - 1, aktY, aktZ - 1, aktX + 1, aktY, aktZ + 1, 'gold_block');
+  await sleep(100);
+  setzeBlock(aktX - 1, aktY + 1, aktZ, 'torch');
+  setzeBlock(aktX + 1, aktY + 1, aktZ, 'torch');
+  setzeBlock(aktX, aktY + 1, aktZ - 1, 'torch');
+  setzeBlock(aktX, aktY + 1, aktZ + 1, 'torch');
   
-  parkourModus.zielPosition = { x: aktX, y: aktY + 1, z: aktZ + 1 };
+  parkourModus.zielPosition = { x: aktX, y: aktY + 1, z: aktZ };
   
   await sleep(500);
   bot.chat(`🏃 Parkour fertig! ${config.sprungAnzahl} Spruenge`);
@@ -3828,17 +3986,23 @@ function stoppeParkour(entfernen = true) {
   // Bloecke entfernen wenn gewuenscht
   if (entfernen && parkourModus.bloecke.length > 0) {
     bot.chat('🧹 Raeume Parkour auf...');
-    let i = 0;
-    const aufraeum = setInterval(() => {
-      if (i >= parkourModus.bloecke.length) {
-        clearInterval(aufraeum);
-        bot.chat('✅ Parkour aufgeraeumt!');
-        return;
-      }
-      const b = parkourModus.bloecke[i];
-      bot.chat(`/setblock ${b.x} ${b.y} ${b.z} air`);
-      i++;
-    }, 50);
+    // Finde Bounding-Box aller Bloecke und loesche mit einem /fill
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (const b of parkourModus.bloecke) {
+      if (b.x < minX) minX = b.x;
+      if (b.y < minY) minY = b.y;
+      if (b.z < minZ) minZ = b.z;
+      if (b.x > maxX) maxX = b.x;
+      if (b.y > maxY) maxY = b.y;
+      if (b.z > maxZ) maxZ = b.z;
+    }
+    // In Abschnitten loeschen (max 32768 Bloecke pro /fill)
+    for (let z = minZ; z <= maxZ; z += 16) {
+      const zEnd = Math.min(z + 15, maxZ);
+      bot.chat(`/fill ${minX} ${minY} ${z} ${maxX} ${maxY + 5} ${zEnd} air`);
+    }
+    setTimeout(() => bot.chat('✅ Parkour aufgeraeumt!'), 1000);
   }
   
   parkourModus.aktiv = false;
@@ -3855,51 +4019,69 @@ async function flattenChunk(username) {
   try {
     const pos = bot.entity.position;
     
-    // Chunk-Grenzen berechnen (16x16 Blöcke)
-    const chunkX = Math.floor(pos.x / 16) * 16;
-    const chunkZ = Math.floor(pos.z / 16) * 16;
+    const chunkStartX = Math.floor(pos.x / 16) * 16;
+    const chunkStartZ = Math.floor(pos.z / 16) * 16;
+    const chunkEndX = chunkStartX + 15;
+    const chunkEndZ = chunkStartZ + 15;
     const zielY = Math.floor(pos.y) - 1;
     
-    bot.chat(`🏗️ Mache Chunk flach! (${chunkX} bis ${chunkX + 15}, Z: ${chunkZ} bis ${chunkZ + 15}, Höhe: Y${zielY})`);
-    console.log(`🏗️ Flatten: Chunk (${chunkX}, ${chunkZ}), Ziel-Y: ${zielY}`);
+    bot.chat('🏗️ CHUNK FLATTEN GESTARTET!');
+    await sleep(600);
+    bot.chat(`📍 Chunk: X ${chunkStartX}-${chunkEndX}, Z ${chunkStartZ}-${chunkEndZ}`);
+    await sleep(600);
+    bot.chat(`📏 Ziel-Höhe: Y = ${zielY} (wo ich stehe)`);
+    await sleep(800);
     
-    // Freddi in Kreativ-Modus setzen
     bot.chat(`/gamemode creative ${bot.username}`);
-    await sleep(1000);
+    await sleep(800);
     
-    // Schritt 1: Alles ÜBER dem Ziel-Level entfernen (in Schichten von oben nach unten)
-    bot.chat('🧹 Entferne alles über der Zielhöhe...');
-    for (let y = zielY + 50; y > zielY; y -= 10) {
-      const vonY = Math.max(zielY + 1, y - 9);
-      bot.chat(`/fill ${chunkX} ${vonY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} air replace`);
-      await sleep(200);
+    // Alles ÜBER der Ziel-Höhe wegräumen (bis Welthöhe 319)
+    bot.chat('🧹 Räume alles über der Fläche weg...');
+    await sleep(600);
+    
+    const maxY = 319;
+    let aktuelleY = zielY + 1;
+    
+    while (aktuelleY <= maxY) {
+      const oberesY = Math.min(aktuelleY + 99, maxY);
+      bot.chat(`/fill ${chunkStartX} ${aktuelleY} ${chunkStartZ} ${chunkEndX} ${oberesY} ${chunkEndZ} air`);
+      await sleep(500);
+      aktuelleY = oberesY + 1;
     }
+    
+    await sleep(800);
+    
+    // Löcher unter der Ziel-Höhe auffüllen (10 Schichten)
+    bot.chat('🟫 Fülle Löcher auf...');
+    await sleep(600);
+    
+    const fuellTiefe = 10;
+    const unteresY = zielY - fuellTiefe;
+    
+    bot.chat(`/fill ${chunkStartX} ${unteresY} ${chunkStartZ} ${chunkEndX} ${zielY - 1} ${chunkEndZ} dirt replace air`);
+    await sleep(500);
+    bot.chat(`/fill ${chunkStartX} ${unteresY} ${chunkStartZ} ${chunkEndX} ${zielY - 1} ${chunkEndZ} dirt replace water`);
+    await sleep(500);
+    bot.chat(`/fill ${chunkStartX} ${unteresY} ${chunkStartZ} ${chunkEndX} ${zielY - 1} ${chunkEndZ} dirt replace lava`);
     await sleep(500);
     
-    // Schritt 2: Löcher unter dem Ziel-Level mit Dirt füllen
-    bot.chat('🕳️ Fülle Löcher auf...');
-    for (let y = zielY - 1; y >= zielY - 10; y -= 5) {
-      const bisY = Math.max(zielY - 10, y - 4);
-      bot.chat(`/fill ${chunkX} ${bisY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} dirt replace air`);
-      await sleep(200);
-      bot.chat(`/fill ${chunkX} ${bisY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} dirt replace water`);
-      await sleep(200);
-      bot.chat(`/fill ${chunkX} ${bisY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} dirt replace lava`);
-      await sleep(200);
-    }
-    await sleep(500);
+    // Oberfläche mit Gras bedecken
+    bot.chat('🌿 Lege Gras-Oberfläche...');
+    await sleep(600);
     
-    // Schritt 3: Gras-Oberfläche auf Ziel-Level setzen
-    bot.chat('🌱 Setze Gras-Oberfläche...');
-    bot.chat(`/fill ${chunkX} ${zielY} ${chunkZ} ${chunkX + 15} ${zielY} ${chunkZ + 15} grass_block`);
-    await sleep(500);
+    bot.chat(`/fill ${chunkStartX} ${zielY} ${chunkStartZ} ${chunkEndX} ${zielY} ${chunkEndZ} grass_block`);
+    await sleep(800);
     
-    bot.chat('✅ Chunk ist jetzt flach!');
-    console.log('✅ Chunk flatten fertig!');
+    bot.chat('✅ Chunk ist jetzt komplett flach!');
+    await sleep(500);
+    bot.chat(`📐 16x16 Blöcke Gras-Fläche auf Y = ${zielY}`);
+    
+    return 'Chunk geflattened';
     
   } catch (err) {
-    console.error('❌ Flatten-Fehler:', err.message);
-    bot.chat(`❌ Fehler: ${err.message}`);
+    console.error('❌ Fehler beim Flatten:', err.message);
+    bot.chat('❌ Fehler beim Flatten!');
+    return 'Fehler';
   }
 }
 
