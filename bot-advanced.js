@@ -3,6 +3,8 @@ import pathfinderPlugin from 'mineflayer-pathfinder';
 import minecraftData from 'minecraft-data';
 import { Ollama } from 'ollama';
 import { Vec3 } from 'vec3';
+import fs from 'fs';
+import path from 'path';
 import { erweiterePromptMitWissen } from './minecraft-ai-knowledge.js';
 import SpatialIntelligence from './spatial-intelligence.js';
 import TemplateLoader from './template-loader.js';
@@ -119,6 +121,36 @@ let swordModus = {
   startZeit: null,           // Wann wurde Sword gestartet
   mitSchaden: true,          // true = echter Schaden (kann sterben), false = easy mode (unsterblich)
   letzterAngriff: 0          // Timestamp vom letzten Angriff (für Cooldown)
+};
+
+// ════════════════════════════════════════
+// 💎 CRYSTAL-MODUS SYSTEM
+// ════════════════════════════════════════
+let crystalModus = {
+  aktiv: false,
+  spieler: null,
+  spielerUsername: null,
+  totemInterval: null,
+  startZeit: null
+};
+
+// ════════════════════════════════════════
+// 📋 COPY/PASTE SYSTEM
+// ════════════════════════════════════════
+let copyPaste = {
+  pos1: null,    // Erste Ecke { x, y, z }
+  pos2: null     // Zweite Ecke { x, y, z }
+};
+
+// ════════════════════════════════════════
+// 🐕 FOLLOW-MODUS SYSTEM
+// ════════════════════════════════════════
+let followModus = {
+  aktiv: false,              // Folgt Freddi gerade jemandem?
+  spieler: null,             // Welchem Spieler folgt er
+  spielerUsername: null,     // Username des Spielers
+  followInterval: null,      // Interval für Follow-Loop
+  bodyguard: false           // Greift Freddi Mobs an die nah sind?
 };
 
 function starteLochUeberwachung() {
@@ -3164,6 +3196,601 @@ function stoppeSwordModus(grund = 'Manuell gestoppt') {
   return 'Sword-Modus gestoppt';
 }
 
+// ════════════════════════════════════════
+// 🐕 FOLLOW-MODUS: Freddi folgt dem Spieler
+// ════════════════════════════════════════
+async function starteFollowModus(username, bodyguard = false) {
+  // Check ob anderer Modus läuft
+  if (maceModus.aktiv || swordModus.aktiv) {
+    bot.chat('⚠️ Stoppe erst den aktuellen Modus!');
+    return;
+  }
+  
+  // Wenn Follow schon läuft, stoppe erst
+  if (followModus.aktiv) {
+    stoppeFollowModus();
+    await sleep(500);
+  }
+  
+  const spieler = bot.players[username]?.entity;
+  if (!spieler) {
+    bot.chat('Kann dich nicht finden!');
+    return;
+  }
+  
+  followModus.aktiv = true;
+  followModus.spieler = spieler;
+  followModus.spielerUsername = username;
+  followModus.bodyguard = bodyguard;
+  
+  const modus = bodyguard ? '🛡️ Bodyguard' : '🐕 Folge';
+  bot.chat(`${modus}-Modus gestartet!`);
+  console.log(`🐕 Follow-Modus gestartet für: ${username} (Bodyguard: ${bodyguard})`);
+  
+  // Pathfinder einrichten
+  const mcData = minecraftData(bot.version);
+  const move = new Movements(bot, mcData);
+  move.canDig = false;
+  move.allowParkour = true;
+  move.allowSprinting = true;
+  move.maxDropDown = 4;
+  move.canOpenDoors = true;
+  
+  bot.pathfinder.setMovements(move);
+  
+  // Follow-Loop: Alle 500ms Position prüfen
+  followModus.followInterval = setInterval(() => {
+    if (!followModus.aktiv) return;
+    
+    try {
+      const spielerEntity = bot.players[followModus.spielerUsername]?.entity;
+      if (!spielerEntity) return;
+      
+      // Update spieler-Referenz
+      followModus.spieler = spielerEntity;
+      
+      const distanz = bot.entity.position.distanceTo(spielerEntity.position);
+      
+      // Zu weit weg? → Teleportiere!
+      if (distanz > 30) {
+        const sp = spielerEntity.position;
+        bot.chat(`/tp ${bot.username} ${sp.x.toFixed(0)} ${sp.y.toFixed(0)} ${sp.z.toFixed(0)}`);
+        return;
+      }
+      
+      // Mehr als 4 Blöcke weg? → Laufe hinterher (Pathfinder baut Brücken!)
+      if (distanz > 4) {
+        try {
+          bot.pathfinder.setGoal(new goals.GoalFollow(spielerEntity, 2), true);
+        } catch (e) {}
+      } else {
+        // Nah genug → Stoppe und schaue zum Spieler
+        try { bot.pathfinder.setGoal(null); } catch(e) {}
+        try { bot.lookAt(spielerEntity.position.offset(0, 1.6, 0), false); } catch(e) {}
+      }
+      
+
+      // Bodyguard-Modus: Angreifbare Mobs in der Nähe?
+      if (followModus.bodyguard) {
+        const feindlicheMobs = ['zombie', 'skeleton', 'creeper', 'spider', 'enderman', 
+          'witch', 'pillager', 'vindicator', 'ravager', 'phantom', 'drowned',
+          'husk', 'stray', 'blaze', 'ghast', 'wither_skeleton', 'piglin_brute'];
+        
+        const entities = Object.values(bot.entities);
+        for (const entity of entities) {
+          if (!entity || !entity.isValid) continue;
+          if (!feindlicheMobs.includes(entity.name)) continue;
+          
+          const mobDistanz = bot.entity.position.distanceTo(entity.position);
+          if (mobDistanz < 8) {
+            try {
+              if (mobDistanz < 3.5) {
+                bot.lookAt(entity.position.offset(0, entity.height * 0.5, 0), false);
+                bot.attack(entity);
+              } else {
+                bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
+              }
+            } catch (e) {}
+            break; // Nur ein Mob gleichzeitig
+          }
+        }
+      }
+      
+    } catch (err) {
+      // Stille Fehler
+    }
+  }, 500);
+}
+
+function stoppeFollowModus() {
+  if (!followModus.aktiv) return;
+  
+  console.log('🛑 Follow-Modus gestoppt');
+  
+  if (followModus.followInterval) {
+    clearInterval(followModus.followInterval);
+    followModus.followInterval = null;
+  }
+  try { bot.pathfinder.setGoal(null); } catch(e) {}
+  try {
+    bot.setControlState('forward', false);
+    bot.setControlState('sprint', false);
+    bot.setControlState('jump', false);
+  } catch(e) {}
+  
+  bot.chat('🛑 Follow-Modus gestoppt!');
+  
+  followModus.aktiv = false;
+  followModus.spieler = null;
+  followModus.spielerUsername = null;
+  followModus.bodyguard = false;
+}
+
+// ════════════════════════════════════════
+// 💎 CRYSTAL-MODUS FUNKTIONEN
+// ════════════════════════════════════════
+async function starteCrystalModus(username) {
+  if (maceModus.aktiv || swordModus.aktiv || followModus.aktiv) {
+    bot.chat('⚠️ Stoppe erst den aktuellen Modus!');
+    return;
+  }
+  
+  if (crystalModus.aktiv) {
+    bot.chat('💎 Crystal-Modus läuft schon!');
+    return;
+  }
+  
+  const spieler = bot.players[username]?.entity;
+  if (!spieler) {
+    bot.chat('Kann dich nicht finden!');
+    return;
+  }
+  
+  crystalModus.aktiv = true;
+  crystalModus.spieler = spieler;
+  crystalModus.spielerUsername = username;
+  crystalModus.startZeit = Date.now();
+  
+  bot.chat('💎 Crystal-Modus startet...');
+  console.log(`💎 Crystal-Modus gestartet für: ${username}`);
+  
+  // Schwierigkeit auf Hard setzen
+  bot.chat('/difficulty hard');
+  await sleep(800);
+  
+  // === SPIELER AUSRÜSTUNG ===
+  bot.chat(`/give ${username} minecraft:obsidian 64`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:end_crystal 64`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:respawn_anchor 64`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:glowstone 64`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:netherite_sword[minecraft:enchantments={levels:{"minecraft:knockback":1}}] 1`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:netherite_helmet[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:netherite_chestplate[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:netherite_leggings[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+  await sleep(400);
+  bot.chat(`/give ${username} minecraft:netherite_boots[minecraft:enchantments={levels:{"minecraft:unbreaking":3}}] 1`);
+  await sleep(400);
+  
+  // Spieler unsterblich + Fire Resistance
+  bot.chat(`/effect give ${username} minecraft:resistance 999999 255`);
+  await sleep(300);
+  bot.chat(`/effect give ${username} minecraft:regeneration 999999 255`);
+  await sleep(300);
+  bot.chat(`/effect give ${username} minecraft:health_boost 999999 10`);
+  await sleep(300);
+  bot.chat(`/effect give ${username} minecraft:fire_resistance 999999 1`);
+  await sleep(500);
+  
+  // === FREDDI AUSRÜSTUNG ===
+  // Helm, Brustplatte, Schuhe: Unbreaking 3 + Protection 4
+  bot.chat(`/give ${bot.username} minecraft:netherite_helmet[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
+  await sleep(400);
+  bot.chat(`/give ${bot.username} minecraft:netherite_chestplate[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
+  await sleep(400);
+  // Hose: Unbreaking 3 + Blast Protection 4
+  bot.chat(`/give ${bot.username} minecraft:netherite_leggings[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:blast_protection":4}}] 1`);
+  await sleep(400);
+  bot.chat(`/give ${bot.username} minecraft:netherite_boots[minecraft:enchantments={levels:{"minecraft:unbreaking":3,"minecraft:protection":4}}] 1`);
+  await sleep(400);
+  // Totems
+  bot.chat(`/give ${bot.username} minecraft:totem_of_undying 64`);
+  await sleep(400);
+  
+  // Freddi Fire Resistance
+  bot.chat(`/effect give ${bot.username} minecraft:fire_resistance 999999 1`);
+  await sleep(500);
+  
+  // Rüstung anziehen
+  try {
+    await sleep(1000);
+    const mcData = minecraftData(bot.version);
+    const helmet = bot.inventory.items().find(i => i.name.includes('helmet'));
+    if (helmet) await bot.equip(helmet, 'head');
+    await sleep(300);
+    const chestplate = bot.inventory.items().find(i => i.name.includes('chestplate'));
+    if (chestplate) await bot.equip(chestplate, 'torso');
+    await sleep(300);
+    const leggings = bot.inventory.items().find(i => i.name.includes('leggings'));
+    if (leggings) await bot.equip(leggings, 'legs');
+    await sleep(300);
+    const boots = bot.inventory.items().find(i => i.name.includes('boots'));
+    if (boots) await bot.equip(boots, 'feet');
+    await sleep(300);
+    const totem = bot.inventory.items().find(i => i.name === 'totem_of_undying');
+    if (totem) await bot.equip(totem, 'off-hand');
+  } catch(e) {
+    console.log('⚠️ Equip-Fehler:', e.message);
+  }
+  
+  // Totem-Refill Loop starten
+  starteCrystalTotemLoop();
+  
+  bot.chat('💎 Crystal-Modus bereit! Viel Spaß beim Üben!');
+}
+
+function starteCrystalTotemLoop() {
+  crystalModus.totemInterval = setInterval(() => {
+    if (!crystalModus.aktiv) return;
+    try {
+      const offhand = bot.inventory.slots[45];
+      if (!offhand || offhand.name !== 'totem_of_undying') {
+        const totem = bot.inventory.items().find(i => i.name === 'totem_of_undying');
+        if (totem) {
+          bot.equip(totem, 'off-hand');
+        } else {
+          bot.chat(`/give ${bot.username} minecraft:totem_of_undying 64`);
+        }
+      }
+    } catch(e) {}
+  }, 200);
+}
+
+function stoppeCrystalModus() {
+  console.log('🛑 Stoppe Crystal-Modus');
+  
+  if (crystalModus.totemInterval) {
+    clearInterval(crystalModus.totemInterval);
+    crystalModus.totemInterval = null;
+  }
+  
+  const username = crystalModus.spielerUsername;
+  
+  crystalModus.aktiv = false;
+  crystalModus.spieler = null;
+  crystalModus.spielerUsername = null;
+  
+  setTimeout(() => {
+    try { bot.chat('💎 Crystal-Modus beendet!'); } catch(e) {}
+  }, 500);
+  
+  setTimeout(() => {
+    try { if (username) bot.chat(`/clear ${username}`); } catch(e) {}
+  }, 2000);
+  
+  setTimeout(() => {
+    try { bot.chat(`/clear ${bot.username}`); } catch(e) {}
+  }, 3500);
+  
+  setTimeout(() => {
+    try { if (username) bot.chat(`/effect clear ${username}`); } catch(e) {}
+  }, 5000);
+  
+  setTimeout(() => {
+    try { bot.chat(`/effect clear ${bot.username}`); } catch(e) {}
+  }, 6500);
+  
+  setTimeout(() => {
+    try { bot.chat('/difficulty peaceful'); } catch(e) {}
+  }, 8000);
+}
+
+// ════════════════════════════════════════
+// 🔍 BLOCK FINDER
+// ════════════════════════════════════════
+const blockSuchListe = {
+  'diamant': 'diamond_ore', 'diamanten': 'diamond_ore', 'diamond': 'diamond_ore',
+  'eisen': 'iron_ore', 'iron': 'iron_ore',
+  'gold': 'gold_ore',
+  'kohle': 'coal_ore', 'coal': 'coal_ore',
+  'redstone': 'redstone_ore',
+  'lapis': 'lapis_ore',
+  'smaragd': 'emerald_ore', 'emerald': 'emerald_ore',
+  'kupfer': 'copper_ore', 'copper': 'copper_ore',
+  'netherite': 'ancient_debris', 'ancient debris': 'ancient_debris',
+  'wasser': 'water', 'water': 'water',
+  'lava': 'lava',
+  'obsidian': 'obsidian',
+  'spawner': 'spawner', 'mob spawner': 'spawner',
+  'chest': 'chest', 'kiste': 'chest', 'truhe': 'chest',
+};
+
+async function findeBlock(suchbegriff, username) {
+  const blockName = blockSuchListe[suchbegriff.toLowerCase()] || suchbegriff.toLowerCase();
+  
+  bot.chat(`🔍 Suche ${suchbegriff}...`);
+  console.log(`🔍 Block-Suche: "${suchbegriff}" → "${blockName}"`);
+  
+  try {
+    const bloecke = bot.findBlocks({
+      matching: (block) => {
+        if (!block) return false;
+        return block.name === blockName || block.name === `deepslate_${blockName}` || 
+               block.name.includes(blockName);
+      },
+      maxDistance: 128,
+      count: 100
+    });
+    
+    if (bloecke.length === 0) {
+      bot.chat(`❌ Kein ${suchbegriff} in 128 Blöcken Reichweite gefunden!`);
+      return;
+    }
+    
+    // Sortiere nach Entfernung
+    const botPos = bot.entity.position;
+    const sortiert = bloecke
+      .map(pos => ({
+        pos,
+        block: bot.blockAt(pos),
+        distanz: botPos.distanceTo(pos)
+      }))
+      .sort((a, b) => a.distanz - b.distanz);
+    
+    bot.chat(`✅ ${bloecke.length}x ${suchbegriff} gefunden!`);
+    
+    // Zeige die 5 nächsten
+    const maxAnzeige = Math.min(5, sortiert.length);
+    for (let i = 0; i < maxAnzeige; i++) {
+      const e = sortiert[i];
+      const name = e.block ? e.block.name : blockName;
+      bot.chat(`  ${i + 1}. ${name} bei (${e.pos.x}, ${e.pos.y}, ${e.pos.z}) - ${e.distanz.toFixed(0)}m`);
+      await sleep(100);
+    }
+    
+    // Y-Level Tipps für Erze
+    if (blockName.includes('diamond')) {
+      bot.chat('💡 Tipp: Diamanten findet man am besten auf Y:-59 bis Y:-64!');
+    } else if (blockName.includes('iron')) {
+      bot.chat('💡 Tipp: Eisen ist am häufigsten auf Y:16 und Y:232!');
+    } else if (blockName === 'ancient_debris') {
+      bot.chat('💡 Tipp: Netherite findet man im Nether auf Y:8-22!');
+    }
+    
+    // Speichere letztes Suchergebnis
+    bot.letztesSuchErgebnis = sortiert[0];
+    
+  } catch (err) {
+    console.error('❌ Block-Finder Fehler:', err.message);
+    bot.chat(`❌ Fehler: ${err.message}`);
+  }
+}
+
+// ════════════════════════════════════════
+// 🏗️ CHUNK FLATTEN - Macht den ganzen Chunk flach
+// ════════════════════════════════════════
+async function flattenChunk(username) {
+  try {
+    const pos = bot.entity.position;
+    
+    // Chunk-Grenzen berechnen (16x16 Blöcke)
+    const chunkX = Math.floor(pos.x / 16) * 16;
+    const chunkZ = Math.floor(pos.z / 16) * 16;
+    const zielY = Math.floor(pos.y) - 1;
+    
+    bot.chat(`🏗️ Mache Chunk flach! (${chunkX} bis ${chunkX + 15}, Z: ${chunkZ} bis ${chunkZ + 15}, Höhe: Y${zielY})`);
+    console.log(`🏗️ Flatten: Chunk (${chunkX}, ${chunkZ}), Ziel-Y: ${zielY}`);
+    
+    // Freddi in Kreativ-Modus setzen
+    bot.chat(`/gamemode creative ${bot.username}`);
+    await sleep(1000);
+    
+    // Schritt 1: Alles ÜBER dem Ziel-Level entfernen (in Schichten von oben nach unten)
+    bot.chat('🧹 Entferne alles über der Zielhöhe...');
+    for (let y = zielY + 50; y > zielY; y -= 10) {
+      const vonY = Math.max(zielY + 1, y - 9);
+      bot.chat(`/fill ${chunkX} ${vonY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} air replace`);
+      await sleep(200);
+    }
+    await sleep(500);
+    
+    // Schritt 2: Löcher unter dem Ziel-Level mit Dirt füllen
+    bot.chat('🕳️ Fülle Löcher auf...');
+    for (let y = zielY - 1; y >= zielY - 10; y -= 5) {
+      const bisY = Math.max(zielY - 10, y - 4);
+      bot.chat(`/fill ${chunkX} ${bisY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} dirt replace air`);
+      await sleep(200);
+      bot.chat(`/fill ${chunkX} ${bisY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} dirt replace water`);
+      await sleep(200);
+      bot.chat(`/fill ${chunkX} ${bisY} ${chunkZ} ${chunkX + 15} ${y} ${chunkZ + 15} dirt replace lava`);
+      await sleep(200);
+    }
+    await sleep(500);
+    
+    // Schritt 3: Gras-Oberfläche auf Ziel-Level setzen
+    bot.chat('🌱 Setze Gras-Oberfläche...');
+    bot.chat(`/fill ${chunkX} ${zielY} ${chunkZ} ${chunkX + 15} ${zielY} ${chunkZ + 15} grass_block`);
+    await sleep(500);
+    
+    bot.chat('✅ Chunk ist jetzt flach!');
+    console.log('✅ Chunk flatten fertig!');
+    
+  } catch (err) {
+    console.error('❌ Flatten-Fehler:', err.message);
+    bot.chat(`❌ Fehler: ${err.message}`);
+  }
+}
+
+// ════════════════════════════════════════
+// 📋 COPY/PASTE FUNKTIONEN
+// ════════════════════════════════════════
+const GEBAEUDE_ORDNER = path.join(path.dirname(new URL(import.meta.url).pathname), 'gespeicherte-gebaeude');
+
+async function kopiereGebaeude(name) {
+  if (!copyPaste.pos1 || !copyPaste.pos2) {
+    bot.chat('❌ Setze erst pos1 und pos2!');
+    return;
+  }
+  
+  try {
+    const minX = Math.min(copyPaste.pos1.x, copyPaste.pos2.x);
+    const minY = Math.min(copyPaste.pos1.y, copyPaste.pos2.y);
+    const minZ = Math.min(copyPaste.pos1.z, copyPaste.pos2.z);
+    const maxX = Math.max(copyPaste.pos1.x, copyPaste.pos2.x);
+    const maxY = Math.max(copyPaste.pos1.y, copyPaste.pos2.y);
+    const maxZ = Math.max(copyPaste.pos1.z, copyPaste.pos2.z);
+    
+    const sizeX = maxX - minX + 1;
+    const sizeY = maxY - minY + 1;
+    const sizeZ = maxZ - minZ + 1;
+    
+    bot.chat(`📋 Scanne ${sizeX}x${sizeY}x${sizeZ} Blöcke...`);
+    
+    const bloecke = [];
+    
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        for (let z = minZ; z <= maxZ; z++) {
+          const block = bot.blockAt(new Vec3(x, y, z));
+          if (block && block.name !== 'air' && block.name !== 'cave_air' && block.name !== 'void_air') {
+            bloecke.push({
+              rx: x - minX,
+              ry: y - minY,
+              rz: z - minZ,
+              name: block.name,
+              properties: block.getProperties ? block.getProperties() : {}
+            });
+          }
+        }
+      }
+    }
+    
+    if (!fs.existsSync(GEBAEUDE_ORDNER)) {
+      fs.mkdirSync(GEBAEUDE_ORDNER, { recursive: true });
+    }
+    
+    const template = {
+      name: name,
+      size: { x: sizeX, y: sizeY, z: sizeZ },
+      blockCount: bloecke.length,
+      blocks: bloecke
+    };
+    
+    const dateiPfad = path.join(GEBAEUDE_ORDNER, `${name}.json`);
+    fs.writeFileSync(dateiPfad, JSON.stringify(template, null, 2));
+    
+    bot.chat(`✅ "${name}" gespeichert! (${bloecke.length} Blöcke, ${sizeX}x${sizeY}x${sizeZ})`);
+    console.log(`📋 Gebäude "${name}" gespeichert: ${dateiPfad}`);
+    
+  } catch (err) {
+    console.error('❌ Kopier-Fehler:', err.message);
+    bot.chat(`❌ Fehler: ${err.message}`);
+  }
+}
+
+async function pasteGebaeude(name, username) {
+  const dateiPfad = path.join(GEBAEUDE_ORDNER, `${name}.json`);
+  
+  if (!fs.existsSync(dateiPfad)) {
+    bot.chat(`❌ Gebäude "${name}" nicht gefunden!`);
+    
+    // Zeige verfügbare Gebäude
+    if (fs.existsSync(GEBAEUDE_ORDNER)) {
+      const dateien = fs.readdirSync(GEBAEUDE_ORDNER).filter(f => f.endsWith('.json'));
+      if (dateien.length > 0) {
+        const namen = dateien.map(f => f.replace('.json', '')).join(', ');
+        bot.chat(`📋 Verfügbar: ${namen}`);
+      }
+    }
+    return;
+  }
+  
+  try {
+    const template = JSON.parse(fs.readFileSync(dateiPfad, 'utf8'));
+    const pos = bot.entity.position;
+    const startX = Math.floor(pos.x);
+    const startY = Math.floor(pos.y);
+    const startZ = Math.floor(pos.z);
+    
+    // Beide Formate unterstuetzen (alt: bloecke/x/y/z, neu: blocks/rx/ry/rz)
+    const blockListe = template.blocks || template.bloecke || [];
+    const anzahl = template.blockCount || template.gesamtBloecke || blockListe.length;
+    
+    bot.chat(`🏗️ Baue "${name}" (${anzahl} Blöcke)...`);
+    
+    // Kreativ-Modus
+    bot.chat(`/gamemode creative ${bot.username}`);
+    await sleep(1000);
+    
+    let platziert = 0;
+    for (const block of blockListe) {
+      const bx = startX + (block.rx !== undefined ? block.rx : block.x);
+      const by = startY + (block.ry !== undefined ? block.ry : block.y);
+      const bz = startZ + (block.rz !== undefined ? block.rz : block.z);
+      
+      // Properties in Minecraft-Format umwandeln
+      let propString = '';
+      if (block.properties && Object.keys(block.properties).length > 0) {
+        const props = Object.entries(block.properties)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(',');
+        propString = `[${props}]`;
+      }
+      
+      bot.chat(`/setblock ${bx} ${by} ${bz} ${block.name}${propString}`);
+      platziert++;
+      
+      // Kleine Pause alle 10 Blöcke
+      if (platziert % 10 === 0) {
+        await sleep(100);
+      }
+    }
+    
+    bot.chat(`✅ "${name}" fertig gebaut! (${platziert} Blöcke)`);
+    
+  } catch (err) {
+    console.error('❌ Paste-Fehler:', err.message);
+    bot.chat(`❌ Fehler: ${err.message}`);
+  }
+}
+
+function listeGebaeude() {
+  if (!fs.existsSync(GEBAEUDE_ORDNER)) {
+    bot.chat('📋 Noch keine Gebäude gespeichert!');
+    return;
+  }
+  
+  const dateien = fs.readdirSync(GEBAEUDE_ORDNER).filter(f => f.endsWith('.json'));
+  
+  if (dateien.length === 0) {
+    bot.chat('📋 Noch keine Gebäude gespeichert!');
+    return;
+  }
+  
+  bot.chat(`📋 Gespeicherte Gebäude (${dateien.length}):`);
+  
+  for (const datei of dateien) {
+    try {
+      const template = JSON.parse(fs.readFileSync(path.join(GEBAEUDE_ORDNER, datei), 'utf8'));
+      const gName = datei.replace('.json', '');
+      const count = template.blockCount || template.gesamtBloecke || 0;
+      const size = template.size || template.groesse || {};
+      const sx = size.x || size.breite || '?';
+      const sy = size.y || size.hoehe || '?';
+      const sz = size.z || size.tiefe || '?';
+      bot.chat(`  • ${gName} (${count} Blöcke, ${sx}x${sy}x${sz})`);
+    } catch(e) {
+      bot.chat(`  • ${datei.replace('.json', '')} (Fehler beim Lesen)`);
+    }
+  }
+}
+
 async function crafteItem(item, anzahl) {
   bot.chat(`🔨 Crafte ${anzahl}x ${item}...`);
   
@@ -3257,7 +3884,9 @@ bot.on('chat', async (username, message) => {
   
   // Schnelle Direktbefehle (funktionieren IMMER)
   if (message === 'stopp' || message === 'stop') {
-    bot.pathfinder.setGoal(null);
+    if (followModus.aktiv) stoppeFollowModus();
+    if (crystalModus.aktiv) stoppeCrystalModus();
+    try { bot.pathfinder.setGoal(null); } catch(e) {}
     bot.chat('Gestoppt!');
     return;
   }
@@ -3274,7 +3903,139 @@ bot.on('chat', async (username, message) => {
     return;
   }
   
+  // Alles zu Kleinbuchstaben für einfacheres Matching
+  cleanedMessage = cleanedMessage.toLowerCase().trim();
+  
   console.log(`✅ Bot wurde angesprochen: "${cleanedMessage}"`);
+  
+  // ── Follow-Modus Befehle ──
+  if (cleanedMessage === 'folge mir' || cleanedMessage === 'follow' || 
+      cleanedMessage === 'folge' || cleanedMessage === 'komm mit') {
+    await starteFollowModus(username, false);
+    return;
+  }
+  
+  if (cleanedMessage === 'beschütz mich' || cleanedMessage === 'beschütze mich' || 
+      cleanedMessage === 'bodyguard' || cleanedMessage === 'verteidige mich' || 
+      cleanedMessage === 'verteidig mich') {
+    await starteFollowModus(username, true);
+    return;
+  }
+  
+  if (cleanedMessage === 'bleib' || cleanedMessage === 'bleib hier') {
+    if (followModus.aktiv) {
+      stoppeFollowModus();
+      return;
+    }
+  }
+  
+  // ── "Komm zu mir" Befehl ──
+  if (cleanedMessage === 'komm zu mir' || cleanedMessage === 'komm her' || 
+      cleanedMessage === 'come' || cleanedMessage === 'komm') {
+    const spieler = bot.players[username]?.entity;
+    if (spieler) {
+      bot.chat('🏃 Komme!');
+      try {
+        const mcData = minecraftData(bot.version);
+        const move = new Movements(bot, mcData);
+        move.canDig = false;
+        move.allowParkour = true;
+        bot.pathfinder.setMovements(move);
+        bot.pathfinder.setGoal(new goals.GoalNear(spieler.position.x, spieler.position.y, spieler.position.z, 2));
+      } catch(e) {
+        const sp = spieler.position;
+        bot.chat(`/tp ${bot.username} ${sp.x.toFixed(0)} ${sp.y.toFixed(0)} ${sp.z.toFixed(0)}`);
+      }
+    } else {
+      bot.chat('Kann dich nicht finden!');
+    }
+    return;
+  }
+  
+  // ── Crystal-Modus Befehle ──
+  if (cleanedMessage === 'crystal' || cleanedMessage === 'crystal start') {
+    await starteCrystalModus(username);
+    return;
+  }
+  
+  // ── Block Finder Befehle ──
+  if (cleanedMessage.startsWith('finde ') || cleanedMessage.startsWith('find ') || 
+      cleanedMessage.startsWith('suche ')) {
+    const suchbegriff = cleanedMessage.split(' ').slice(1).join(' ');
+    if (suchbegriff) {
+      await findeBlock(suchbegriff, username);
+    } else {
+      bot.chat('❌ Was soll ich suchen? z.B. "finde diamanten"');
+    }
+    return;
+  }
+  
+  // Chunk Flatten Befehl
+  if (cleanedMessage === 'chunk flach machen' || cleanedMessage === 'flatten' || 
+      cleanedMessage === 'flach machen' || cleanedMessage === 'chunk flatten' || 
+      cleanedMessage === 'flach') {
+    await flattenChunk(username);
+    return;
+  }
+  
+  // ── Copy/Paste Befehle ──
+  // pos1 / pos2 setzen
+  if (cleanedMessage.startsWith('pos1') || cleanedMessage.startsWith('pos 1')) {
+    const zahlen = cleanedMessage.match(/-?\d+/g);
+    if (zahlen && zahlen.length >= 3) {
+      copyPaste.pos1 = { x: parseInt(zahlen[0]), y: parseInt(zahlen[1]), z: parseInt(zahlen[2]) };
+    } else {
+      const spieler = bot.players[username]?.entity;
+      if (spieler) {
+        const p = spieler.position;
+        copyPaste.pos1 = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) };
+      }
+    }
+    if (copyPaste.pos1) {
+      bot.chat(`✅ Pos1: ${copyPaste.pos1.x}, ${copyPaste.pos1.y}, ${copyPaste.pos1.z}`);
+    }
+    return;
+  }
+  
+  if (cleanedMessage.startsWith('pos2') || cleanedMessage.startsWith('pos 2')) {
+    const zahlen = cleanedMessage.match(/-?\d+/g);
+    if (zahlen && zahlen.length >= 3) {
+      copyPaste.pos2 = { x: parseInt(zahlen[0]), y: parseInt(zahlen[1]), z: parseInt(zahlen[2]) };
+    } else {
+      const spieler = bot.players[username]?.entity;
+      if (spieler) {
+        const p = spieler.position;
+        copyPaste.pos2 = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) };
+      }
+    }
+    if (copyPaste.pos2) {
+      bot.chat(`✅ Pos2: ${copyPaste.pos2.x}, ${copyPaste.pos2.y}, ${copyPaste.pos2.z}`);
+    }
+    return;
+  }
+  
+  // Kopiere/Scan Gebäude
+  if (cleanedMessage.startsWith('kopiere ') || cleanedMessage.startsWith('copy ') || 
+      cleanedMessage.startsWith('scan ')) {
+    const name = cleanedMessage.split(' ').slice(1).join('-') || 'gebaeude';
+    await kopiereGebaeude(name);
+    return;
+  }
+  
+  // Paste Gebäude
+  if (cleanedMessage.startsWith('paste ') || cleanedMessage.startsWith('baue ') || 
+      cleanedMessage.startsWith('einfügen ')) {
+    const name = cleanedMessage.split(' ').slice(1).join('-') || 'gebaeude';
+    await pasteGebaeude(name, username);
+    return;
+  }
+  
+  // Liste Gebäude
+  if (cleanedMessage === 'gebäude' || cleanedMessage === 'gebaeude' || 
+      cleanedMessage === 'liste' || cleanedMessage === 'builds') {
+    listeGebaeude();
+    return;
+  }
   
   // Mace-Modus Befehle (höchste Priorität)
   if (cleanedMessage === 'mace' || cleanedMessage === 'mace start') {
@@ -3298,11 +4059,15 @@ bot.on('chat', async (username, message) => {
     return;
   }
   
-  if (cleanedMessage === 'stop' || cleanedMessage === 'mace stop' || cleanedMessage === 'sword stop') {
+  if (cleanedMessage === 'stop' || cleanedMessage === 'mace stop' || cleanedMessage === 'sword stop' || cleanedMessage === 'crystal stop') {
     if (maceModus.aktiv) {
       stoppeMaceModus();
     } else if (swordModus.aktiv) {
       stoppeSwordModus('Manuell gestoppt');
+    } else if (crystalModus.aktiv) {
+      stoppeCrystalModus();
+    } else if (followModus.aktiv) {
+      stoppeFollowModus();
     } else {
       bot.chat('⚠️ Kein Modus aktiv!');
     }
@@ -3355,47 +4120,49 @@ bot.on('error', (err) => console.error('❌', err));
 bot.on('kicked', (reason) => {
   console.log('⚠️ Gekickt:', reason);
   
-  // Stoppe Sword-Modus wenn aktiv
   if (swordModus.aktiv) {
-    console.log('🛑 Stoppe Sword-Modus wegen Kick');
-    if (swordModus.kampfInterval) {
-      clearInterval(swordModus.kampfInterval);
-      swordModus.kampfInterval = null;
-    }
+    if (swordModus.kampfInterval) clearInterval(swordModus.kampfInterval);
+    swordModus.kampfInterval = null;
     swordModus.aktiv = false;
   }
-  
-  // Stoppe Mace-Modus wenn aktiv
   if (maceModus.aktiv) {
-    console.log('🛑 Stoppe Mace-Modus wegen Kick');
-    if (maceModus.updateInterval) {
-      clearInterval(maceModus.updateInterval);
-      maceModus.updateInterval = null;
-    }
+    if (maceModus.updateInterval) clearInterval(maceModus.updateInterval);
+    maceModus.updateInterval = null;
     maceModus.aktiv = false;
+  }
+  if (crystalModus.aktiv) {
+    if (crystalModus.totemInterval) clearInterval(crystalModus.totemInterval);
+    crystalModus.totemInterval = null;
+    crystalModus.aktiv = false;
+  }
+  if (followModus.aktiv) {
+    if (followModus.followInterval) clearInterval(followModus.followInterval);
+    followModus.followInterval = null;
+    followModus.aktiv = false;
   }
 });
 bot.on('end', () => {
   console.log('🔌 Verbindung beendet');
   
-  // Stoppe Sword-Modus wenn aktiv
   if (swordModus.aktiv) {
-    console.log('🛑 Stoppe Sword-Modus wegen Disconnect');
-    if (swordModus.kampfInterval) {
-      clearInterval(swordModus.kampfInterval);
-      swordModus.kampfInterval = null;
-    }
+    if (swordModus.kampfInterval) clearInterval(swordModus.kampfInterval);
+    swordModus.kampfInterval = null;
     swordModus.aktiv = false;
   }
-  
-  // Stoppe Mace-Modus wenn aktiv
   if (maceModus.aktiv) {
-    console.log('🛑 Stoppe Mace-Modus wegen Disconnect');
-    if (maceModus.updateInterval) {
-      clearInterval(maceModus.updateInterval);
-      maceModus.updateInterval = null;
-    }
+    if (maceModus.updateInterval) clearInterval(maceModus.updateInterval);
+    maceModus.updateInterval = null;
     maceModus.aktiv = false;
+  }
+  if (crystalModus.aktiv) {
+    if (crystalModus.totemInterval) clearInterval(crystalModus.totemInterval);
+    crystalModus.totemInterval = null;
+    crystalModus.aktiv = false;
+  }
+  if (followModus.aktiv) {
+    if (followModus.followInterval) clearInterval(followModus.followInterval);
+    followModus.followInterval = null;
+    followModus.aktiv = false;
   }
 });
 process.on('SIGINT', () => { bot.quit(); process.exit(0); });

@@ -1,0 +1,4093 @@
+{
+  "name": "mein-haus",
+  "erstelltVon": "Freddiiiiii Copy/Paste System",
+  "datum": "2026-02-11T09:26:51.972Z",
+  "groesse": {
+    "breite": 14,
+    "hoehe": 7,
+    "tiefe": 14
+  },
+  "gesamtBloecke": 483,
+  "bloecke": [
+    {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "z": 11,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "z": 12,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "z": 11,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "z": 12,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 7,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 0,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 0,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 0,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 5,
+      "name": "white_banner",
+      "properties": {
+        "rotation": "8"
+      }
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "z": 11,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 5,
+      "name": "white_banner",
+      "properties": {
+        "rotation": "8"
+      }
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "z": 11,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 1,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 1,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 1,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 7,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 8,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 9,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "z": 8,
+      "name": "lectern",
+      "properties": {
+        "powered": false,
+        "has_book": false,
+        "facing": "east"
+      }
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "z": 1,
+      "name": "end_rod",
+      "properties": {
+        "facing": "up"
+      }
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "z": 4,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "z": 5,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "inner_right",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 2,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 2,
+      "z": 5,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 5,
+      "y": 2,
+      "z": 10,
+      "name": "oak_door",
+      "properties": {
+        "powered": false,
+        "open": false,
+        "hinge": "left",
+        "half": "lower",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "z": 5,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "z": 10,
+      "name": "oak_door",
+      "properties": {
+        "powered": false,
+        "open": false,
+        "hinge": "right",
+        "half": "lower",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "z": 4,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "z": 5,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "inner_left",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "z": 1,
+      "name": "end_rod",
+      "properties": {
+        "facing": "up"
+      }
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "z": 7,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "outer_right",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "z": 8,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "z": 9,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 2,
+      "z": 7,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 9,
+      "y": 2,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 2,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "z": 1,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "z": 7,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 2,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 2,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "z": 1,
+      "name": "lantern",
+      "properties": {
+        "waterlogged": false,
+        "hanging": false
+      }
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "z": 5,
+      "name": "wall_torch",
+      "properties": {
+        "facing": "east"
+      }
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "z": 7,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "z": 8,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "z": 9,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 3,
+      "z": 10,
+      "name": "oak_door",
+      "properties": {
+        "powered": false,
+        "open": false,
+        "hinge": "left",
+        "half": "upper",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 6,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 3,
+      "z": 10,
+      "name": "oak_door",
+      "properties": {
+        "powered": false,
+        "open": false,
+        "hinge": "right",
+        "half": "upper",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 7,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 3,
+      "z": 8,
+      "name": "red_bed",
+      "properties": {
+        "part": "foot",
+        "occupied": false,
+        "facing": "east"
+      }
+    },
+    {
+      "x": 9,
+      "y": 3,
+      "z": 9,
+      "name": "red_bed",
+      "properties": {
+        "part": "foot",
+        "occupied": false,
+        "facing": "east"
+      }
+    },
+    {
+      "x": 9,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 3,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 3,
+      "z": 1,
+      "name": "lantern",
+      "properties": {
+        "waterlogged": false,
+        "hanging": false
+      }
+    },
+    {
+      "x": 10,
+      "y": 3,
+      "z": 5,
+      "name": "wall_torch",
+      "properties": {
+        "facing": "west"
+      }
+    },
+    {
+      "x": 10,
+      "y": 3,
+      "z": 8,
+      "name": "red_bed",
+      "properties": {
+        "part": "head",
+        "occupied": false,
+        "facing": "east"
+      }
+    },
+    {
+      "x": 10,
+      "y": 3,
+      "z": 9,
+      "name": "red_bed",
+      "properties": {
+        "part": "head",
+        "occupied": false,
+        "facing": "east"
+      }
+    },
+    {
+      "x": 10,
+      "y": 3,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 3,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "z": 7,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "z": 8,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "z": 9,
+      "name": "bookshelf",
+      "properties": {}
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 3,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 5,
+      "y": 4,
+      "z": 9,
+      "name": "wall_torch",
+      "properties": {
+        "facing": "north"
+      }
+    },
+    {
+      "x": 5,
+      "y": 4,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "top",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 6,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 6,
+      "y": 4,
+      "z": 9,
+      "name": "wall_torch",
+      "properties": {
+        "facing": "north"
+      }
+    },
+    {
+      "x": 6,
+      "y": 4,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "top",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 7,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 7,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 8,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 9,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 4,
+      "z": 0,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 10,
+      "y": 4,
+      "z": 10,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 0,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 1,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 2,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 3,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 4,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 5,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 6,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 7,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 8,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 9,
+      "name": "oak_planks",
+      "properties": {}
+    },
+    {
+      "x": 11,
+      "y": 4,
+      "z": 10,
+      "name": "stripped_oak_log",
+      "properties": {
+        "axis": "y"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "outer_right",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 1,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 2,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 3,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 4,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 5,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 6,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 7,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 8,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 9,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "east"
+      }
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "outer_right",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "double"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "double"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "double"
+      }
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "double"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "double"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "double"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "double"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "south"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 1,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 2,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 3,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 4,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 5,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 6,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 7,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 8,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 9,
+      "name": "oak_slab",
+      "properties": {
+        "waterlogged": false,
+        "type": "top"
+      }
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "north"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 0,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "outer_left",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 1,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 2,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 3,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 4,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 5,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 6,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 7,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 8,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 9,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "straight",
+        "half": "bottom",
+        "facing": "west"
+      }
+    },
+    {
+      "x": 11,
+      "y": 5,
+      "z": 10,
+      "name": "oak_stairs",
+      "properties": {
+        "waterlogged": false,
+        "shape": "outer_left",
+        "half": "bottom",
+        "facing": "north"
+      }
+    }
+  ]
+}
